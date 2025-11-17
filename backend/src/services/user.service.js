@@ -1,0 +1,446 @@
+import { prisma } from '../config/database.js';
+import { hashPassword } from '../utils/hash.util.js';
+
+/**
+ * User Service
+ * Бизнес-логика для работы с пользователями (сотрудниками)
+ */
+
+/**
+ * Получить всех пользователей клиники
+ * @param {string} clinicId - ID клиники
+ * @param {object} options - Опции (role, page, limit)
+ * @returns {Promise<object>} { users, meta }
+ */
+export async function findAll(clinicId, options = {}) {
+  const { role, page = 1, limit = 50 } = options;
+  const skip = (page - 1) * limit;
+
+  // Построение where clause
+  const where = {
+    clinicId, // ВСЕГДА фильтруем по clinicId!
+  };
+
+  // Фильтр по роли
+  if (role) {
+    where.role = role;
+  }
+
+  // Получаем пользователей и общее количество
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        specialization: true,
+        phone: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true,
+        // НЕ возвращаем passwordHash!
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+/**
+ * Получить пользователя по ID
+ * @param {string} clinicId - ID клиники
+ * @param {string} userId - ID пользователя
+ * @returns {Promise<object>} User
+ */
+export async function findById(clinicId, userId) {
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      clinicId, // ОБЯЗАТЕЛЬНО!
+    },
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      specialization: true,
+      phone: true,
+      avatar: true,
+      createdAt: true,
+      updatedAt: true,
+      // НЕ возвращаем passwordHash!
+    },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  return user;
+}
+
+/**
+ * Создать пользователя
+ * @param {string} clinicId - ID клиники
+ * @param {object} data - Данные пользователя
+ * @returns {Promise<object>} Созданный пользователь
+ */
+export async function create(clinicId, data) {
+  // Проверка: уникальность email (глобально, не только в клинике)
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email },
+  });
+
+  if (existing) {
+    throw new Error('User with this email already exists');
+  }
+
+  // Хешируем пароль
+  const passwordHash = await hashPassword(data.password);
+
+  // Создаем пользователя
+  const user = await prisma.user.create({
+    data: {
+      clinicId, // ОБЯЗАТЕЛЬНО!
+      name: data.name,
+      email: data.email,
+      passwordHash,
+      role: data.role,
+      specialization: data.specialization || null,
+      phone: data.phone || null,
+    },
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      specialization: true,
+      phone: true,
+      createdAt: true,
+      updatedAt: true,
+      // НЕ возвращаем passwordHash!
+    },
+  });
+
+  return user;
+}
+
+/**
+ * Обновить пользователя
+ * @param {string} clinicId - ID клиники
+ * @param {string} userId - ID пользователя
+ * @param {object} data - Данные для обновления
+ * @returns {Promise<object>} Обновленный пользователь
+ */
+export async function update(clinicId, userId, data) {
+  // Проверяем что пользователь существует и принадлежит клинике
+  await findById(clinicId, userId);
+
+  // Если обновляется email, проверяем уникальность
+  if (data.email) {
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existing && existing.id !== userId) {
+      throw new Error('User with this email already exists');
+    }
+  }
+
+  // Если обновляется пароль, хешируем его
+  if (data.password) {
+    data.passwordHash = await hashPassword(data.password);
+    delete data.password; // Удаляем plaintext password
+  }
+
+  // Обновляем
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      specialization: true,
+      phone: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return user;
+}
+
+/**
+ * Удалить пользователя
+ * @param {string} clinicId - ID клиники
+ * @param {string} userId - ID пользователя
+ */
+export async function remove(clinicId, userId) {
+  // Проверяем что пользователь существует и принадлежит клинике
+  await findById(clinicId, userId);
+
+  // Проверка: нельзя удалить последнего админа
+  const admins = await prisma.user.count({
+    where: {
+      clinicId,
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    },
+  });
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (user.role === 'ADMIN' && admins <= 1) {
+    throw new Error('Cannot delete the last admin of the clinic');
+  }
+
+  // Удаляем
+  await prisma.user.delete({
+    where: { id: userId },
+  });
+}
+
+/**
+ * Получить всех врачей клиники
+ * @param {string} clinicId - ID клиники
+ * @returns {Promise<array>} Список врачей
+ */
+export async function findDoctors(clinicId) {
+  return await prisma.user.findMany({
+    where: {
+      clinicId,
+      role: 'DOCTOR',
+      status: 'ACTIVE',
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      specialization: true,
+      phone: true,
+      avatar: true,
+      experience: true,
+      status: true,
+      licenseNumber: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+}
+
+/**
+ * Получить всех пользователей со статусом PENDING
+ * @returns {Promise<array>} Список пользователей на одобрении
+ */
+export async function findPendingUsers() {
+  console.log('🔵 [USER SERVICE] Получение pending пользователей');
+  
+  const users = await prisma.user.findMany({
+    where: {
+      status: 'PENDING',
+      role: {
+        in: ['DOCTOR', 'PARTNER'], // Только врачи и партнеры требуют одобрения
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      phone: true,
+      // Doctor fields
+      specialization: true,
+      licenseNumber: true,
+      experience: true,
+      // Partner fields
+      organizationName: true,
+      organizationType: true,
+      inn: true,
+      address: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  console.log(`✅ [USER SERVICE] Найдено ${users.length} pending пользователей`);
+  return users;
+}
+
+/**
+ * Одобрить пользователя (PENDING -> ACTIVE)
+ * @param {string} userId - ID пользователя
+ * @returns {Promise<object>} Обновленный пользователь
+ */
+export async function approveUser(userId) {
+  console.log('🔵 [USER SERVICE] Одобрение пользователя:', userId);
+
+  // Проверяем что пользователь существует и в статусе PENDING
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    console.log('🔴 [USER SERVICE] Пользователь не найден');
+    throw new Error('User not found');
+  }
+
+  if (user.status !== 'PENDING') {
+    console.log('🔴 [USER SERVICE] Пользователь не в статусе PENDING');
+    throw new Error('User is not pending approval');
+  }
+
+  // Обновляем статус на ACTIVE
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { status: 'ACTIVE' },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  console.log('✅ [USER SERVICE] Пользователь одобрен:', updatedUser.id);
+  return updatedUser;
+}
+
+/**
+ * Отклонить пользователя (PENDING -> REJECTED)
+ * @param {string} userId - ID пользователя
+ * @param {string} reason - Причина отклонения (опционально)
+ * @returns {Promise<object>} Обновленный пользователь
+ */
+export async function rejectUser(userId, reason = null) {
+  console.log('🔵 [USER SERVICE] Отклонение пользователя:', userId);
+
+  // Проверяем что пользователь существует и в статусе PENDING
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    console.log('🔴 [USER SERVICE] Пользователь не найден');
+    throw new Error('User not found');
+  }
+
+  if (user.status !== 'PENDING') {
+    console.log('🔴 [USER SERVICE] Пользователь не в статусе PENDING');
+    throw new Error('User is not pending approval');
+  }
+
+  // Обновляем статус на REJECTED
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { 
+      status: 'REJECTED',
+      // Можно добавить поле для причины отклонения в будущем
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  console.log('✅ [USER SERVICE] Пользователь отклонен:', updatedUser.id);
+  return updatedUser;
+}
+
+/**
+ * Создать врача в клинике (Clinic создает врача для своей клиники)
+ * @param {string} clinicId - ID клиники
+ * @param {object} data - Данные врача
+ * @returns {Promise<object>} Созданный врач
+ */
+export async function createDoctorByClinic(clinicId, data) {
+  console.log('🔵 [USER SERVICE] Создание врача для клиники:', clinicId);
+
+  // Проверка: клиника существует
+  const clinic = await prisma.clinic.findUnique({
+    where: { id: clinicId },
+  });
+
+  if (!clinic) {
+    console.log('🔴 [USER SERVICE] Клиника не найдена');
+    throw new Error('Clinic not found');
+  }
+
+  // Проверка: уникальность email (глобально)
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email },
+  });
+
+  if (existing) {
+    console.log('🔴 [USER SERVICE] Email уже используется:', data.email);
+    throw new Error('User with this email already exists');
+  }
+
+  // Хешируем пароль
+  const passwordHash = await hashPassword(data.password);
+
+  // Создаем врача
+  const doctor = await prisma.user.create({
+    data: {
+      clinicId,
+      name: data.name,
+      email: data.email,
+      passwordHash,
+      role: 'DOCTOR', // ОБЯЗАТЕЛЬНО роль врача
+      status: 'ACTIVE', // Сразу активен (создан клиникой)
+      specialization: data.specialization,
+      licenseNumber: data.licenseNumber,
+      experience: data.experience,
+      phone: data.phone || null,
+      dateOfBirth: data.dateOfBirth || null,
+      gender: data.gender || null,
+    },
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      specialization: true,
+      licenseNumber: true,
+      experience: true,
+      phone: true,
+      dateOfBirth: true,
+      gender: true,
+      createdAt: true,
+      updatedAt: true,
+      // НЕ возвращаем passwordHash!
+    },
+  });
+
+  console.log('✅ [USER SERVICE] Врач успешно создан:', doctor.id);
+  return doctor;
+}
+
