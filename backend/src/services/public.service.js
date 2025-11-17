@@ -138,6 +138,7 @@ export async function findClinicDoctors(slug) {
  * @param {object} patientData - Данные пациента
  * @param {Date} appointmentDate - Дата и время
  * @param {string} reason - Причина визита
+ * @param {Date} registeredAt - Локальное время когда пациент был на сайте и отправил регистрацию
  * @returns {Promise<object>} Созданный appointment
  */
 export async function createPublicAppointment(
@@ -145,7 +146,8 @@ export async function createPublicAppointment(
   doctorId,
   patientData,
   appointmentDate,
-  reason
+  reason,
+  registeredAt
 ) {
   // 1. Находим клинику по slug
   const clinic = await prisma.clinic.findUnique({
@@ -190,6 +192,7 @@ export async function createPublicAppointment(
     appointmentDate,
     duration: 30, // По умолчанию 30 минут для публичных заявок
     reason: reason || 'Онлайн-запись',
+    registeredAt: registeredAt || null, // Локальное время регистрации от пользователя
   });
 
   return {

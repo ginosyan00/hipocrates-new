@@ -8,5 +8,6 @@ export { Input } from './Input';
 export { Card } from './Card';
 export { Modal } from './Modal';
 export { Spinner } from './Spinner';
+export { BackButton } from './BackButton';
 
 

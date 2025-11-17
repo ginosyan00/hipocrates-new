@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { NewDashboardLayout } from '../../components/dashboard/NewDashboardLayout';
 import { Card, Button } from '../../components/common';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -12,7 +11,6 @@ import { User } from '../../types/api.types';
  */
 export const AdminDashboard: React.FC = () => {
   const user = useAuthStore(state => state.user);
-  const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');

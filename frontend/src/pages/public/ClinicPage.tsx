@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Button, Card, Input, Modal, Spinner } from '../../components/common';
+import { Button, Card, Input, Modal, Spinner, BackButton } from '../../components/common';
 import { useClinic, useClinicDoctors, useCreatePublicAppointment } from '../../hooks/usePublic';
 
 // Import icons
@@ -42,6 +42,9 @@ export const ClinicPage: React.FC = () => {
 
     try {
       const appointmentDateTime = `${formData.appointmentDate}T${formData.appointmentTime}:00Z`;
+      
+      // Записываем локальное время пользователя в момент отправки формы
+      const registeredAt = new Date().toISOString();
 
       await createMutation.mutateAsync({
         clinicSlug: slug!,
@@ -53,6 +56,7 @@ export const ClinicPage: React.FC = () => {
         },
         appointmentDate: appointmentDateTime,
         reason: formData.reason || undefined,
+        registeredAt: registeredAt,
       });
 
       setSuccessMessage('✅ Ваша заявка принята! Клиника свяжется с вами в ближайшее время.');
@@ -121,6 +125,11 @@ export const ClinicPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-8 py-12">
+        {/* Back Button */}
+        <div className="mb-6">
+          <BackButton fallback="/clinics" />
+        </div>
+
         {/* Clinic Info Card */}
         <Card padding="lg" className="mb-8">
           <h1 className="text-4xl font-semibold text-text-100 mb-6">{clinic.name}</h1>

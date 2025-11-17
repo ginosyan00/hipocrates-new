@@ -124,6 +124,7 @@ model Appointment {
   status          String  @default("pending")  // pending | confirmed | completed | cancelled
   notes           String?
   reason          String?
+  registeredAt    DateTime? // Время когда пациент был на сайте и отправил регистрацию (локальное время пользователя)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

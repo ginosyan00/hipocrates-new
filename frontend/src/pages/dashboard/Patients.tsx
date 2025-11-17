@@ -109,8 +109,8 @@ export const PatientsPage: React.FC = () => {
   return (
     <NewDashboardLayout>
       <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+        {/* Header */}
+        <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold text-text-100">Пациенты</h1>
           <p className="text-text-10 text-sm mt-1">Всего: {data?.meta.total || 0}</p>

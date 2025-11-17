@@ -171,6 +171,7 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   reason?: string;
+  registeredAt?: Date | string; // Время когда пациент был на сайте и отправил регистрацию (локальное время пользователя)
   createdAt: Date;
   updatedAt: Date;
   doctor?: {

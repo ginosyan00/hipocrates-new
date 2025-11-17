@@ -235,6 +235,7 @@ export async function create(clinicId, data) {
       status: 'pending',
       reason: data.reason || null,
       notes: data.notes || null,
+      registeredAt: data.registeredAt || null, // Локальное время регистрации от пользователя
     },
     include: {
       doctor: {
@@ -338,10 +339,16 @@ export async function updateStatus(clinicId, appointmentId, newStatus, userRole)
     );
   }
 
-  // Проверка прав: только doctor может переводить в completed
-  if (newStatus === 'completed' && !['admin', 'doctor'].includes(userRole)) {
-    throw new Error('Only admin or doctor can mark appointment as completed');
+  // Проверка прав: только ADMIN, CLINIC или DOCTOR могут переводить в completed
+  // Также ADMIN, CLINIC и DOCTOR могут подтверждать и отменять приёмы
+  // CLINIC - администратор клиники, имеет те же права что и DOCTOR
+  const normalizedRole = userRole?.toUpperCase();
+  if (newStatus === 'completed' && !['ADMIN', 'CLINIC', 'DOCTOR'].includes(normalizedRole)) {
+    throw new Error('Only admin, clinic or doctor can mark appointment as completed');
   }
+  
+  // Логируем действие для аудита
+  console.log(`✅ [APPOINTMENT STATUS] ${normalizedRole} изменил статус приёма ${appointmentId} с '${currentStatus}' на '${newStatus}'`);
 
   // Обновляем статус
   const updated = await prisma.appointment.update({

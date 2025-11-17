@@ -57,11 +57,12 @@ router.put(
 /**
  * PATCH /api/v1/appointments/:id/status
  * Изменить статус приёма
- * Доступ: ADMIN, DOCTOR (ограничения внутри service)
+ * Доступ: ADMIN, CLINIC, DOCTOR (ограничения внутри service)
+ * CLINIC - администратор клиники, имеет те же права что и DOCTOR
  */
 router.patch(
   '/:id/status',
-  authorize('ADMIN', 'DOCTOR'),
+  authorize('ADMIN', 'CLINIC', 'DOCTOR'),
   validate(updateStatusSchema),
   appointmentController.updateStatus
 );

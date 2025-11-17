@@ -60,6 +60,7 @@ export const publicService = {
     };
     appointmentDate: string;
     reason?: string;
+    registeredAt?: string; // Локальное время когда пациент был на сайте и отправил регистрацию
   }): Promise<any> {
     const { data } = await api.post<ApiResponse<any>>(
       '/public/appointments',

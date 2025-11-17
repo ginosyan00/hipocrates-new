@@ -52,8 +52,17 @@ export function authorize(...allowedRoles) {
       return unauthorizedResponse(res, 'User not authenticated');
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      console.log('🔴 [AUTHORIZE MIDDLEWARE] Доступ запрещен:', { userRole: req.user.role, allowedRoles });
+    // Нормализуем роли для сравнения (case-insensitive)
+    const userRole = req.user.role?.toUpperCase();
+    const normalizedAllowedRoles = allowedRoles.map(role => role.toUpperCase());
+
+    if (!normalizedAllowedRoles.includes(userRole)) {
+      console.log('🔴 [AUTHORIZE MIDDLEWARE] Доступ запрещен:', { 
+        userRole: req.user.role, 
+        normalizedUserRole: userRole,
+        allowedRoles,
+        normalizedAllowedRoles 
+      });
       return res.status(403).json({
         success: false,
         error: {
@@ -63,7 +72,7 @@ export function authorize(...allowedRoles) {
       });
     }
 
-    console.log('✅ [AUTHORIZE MIDDLEWARE] Доступ разрешен');
+    console.log('✅ [AUTHORIZE MIDDLEWARE] Доступ разрешен для роли:', userRole);
     next();
   };
 }

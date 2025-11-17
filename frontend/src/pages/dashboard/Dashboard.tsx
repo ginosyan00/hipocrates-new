@@ -4,6 +4,7 @@ import { AppointmentChart } from '../../components/dashboard/AppointmentChart';
 import { DoctorProfile } from '../../components/dashboard/DoctorProfile';
 import { Card, Button } from '../../components/common';
 import { AddDoctorModal } from '../../components/dashboard/AddDoctorModal';
+import { useAuthStore } from '../../store/useAuthStore';
 import { userService } from '../../services/user.service';
 import { User } from '../../types/api.types';
 
@@ -17,10 +18,15 @@ import patientIcon from '../../assets/icons/patient.svg';
  * Գեղեցիկ dashboard կլինիկայի համար
  */
 export const DashboardPage: React.FC = () => {
+  const user = useAuthStore(state => state.user);
+  
   // State для врачей
   const [doctors, setDoctors] = useState<User[]>([]);
   const [isDoctorsLoading, setIsDoctorsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Проверка: только CLINIC может добавлять врачей
+  const canAddDoctors = user?.role === 'CLINIC';
   
   // Загрузка врачей
   useEffect(() => {
@@ -67,7 +73,8 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <NewDashboardLayout>
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Left Side */}
         <div className="flex-1 space-y-6">
           {/* Stats Cards Row */}
@@ -115,20 +122,24 @@ export const DashboardPage: React.FC = () => {
           {/* Appointment Chart */}
           <AppointmentChart />
 
-          {/* Команда врачей - зберігаємо функціонал додавання */}
+          {/* Команда врачей */}
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-text-50">Команда врачей</h2>
-                <p className="text-xs text-text-10 mt-1">Управление специалистами клиники</p>
+                <p className="text-xs text-text-10 mt-1">
+                  {canAddDoctors ? 'Управление специалистами клиники' : 'Список специалистов клиники'}
+                </p>
               </div>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setIsModalOpen(true)}
-              >
-                ➕ Добавить врача
-              </Button>
+              {canAddDoctors && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsModalOpen(true)}
+                >
+                  ➕ Добавить врача
+                </Button>
+              )}
             </div>
             
             {isDoctorsLoading ? (
@@ -139,13 +150,17 @@ export const DashboardPage: React.FC = () => {
             ) : doctors.length === 0 ? (
               <div className="text-center py-12 text-text-10">
                 <div className="text-5xl mb-3">👨‍⚕️</div>
-                <p className="text-sm mb-4">Добавьте первого врача в вашу клинику</p>
-                <Button
-                  variant="primary"
-                  onClick={() => setIsModalOpen(true)}
-                >
-                  ➕ Добавить врача
-                </Button>
+                <p className="text-sm mb-4">
+                  {canAddDoctors ? 'Добавьте первого врача в вашу клинику' : 'Пока нет врачей в клинике'}
+                </p>
+                {canAddDoctors && (
+                  <Button
+                    variant="primary"
+                    onClick={() => setIsModalOpen(true)}
+                  >
+                    ➕ Добавить врача
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -223,12 +238,15 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Add Doctor Modal */}
-      <AddDoctorModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleDoctorCreated}
-      />
+      {/* Add Doctor Modal - только для CLINIC */}
+      {canAddDoctors && (
+        <AddDoctorModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={handleDoctorCreated}
+        />
+      )}
+      </div>
     </NewDashboardLayout>
   );
 };

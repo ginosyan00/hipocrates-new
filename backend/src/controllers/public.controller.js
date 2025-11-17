@@ -64,14 +64,18 @@ export async function getClinicDoctors(req, res, next) {
  */
 export async function createAppointment(req, res, next) {
   try {
-    const { clinicSlug, doctorId, patient, appointmentDate, reason } = req.body;
+    const { clinicSlug, doctorId, patient, appointmentDate, reason, registeredAt } = req.body;
+
+    // Преобразуем registeredAt в Date, если он передан как строка
+    const registeredAtDate = registeredAt ? new Date(registeredAt) : null;
 
     const result = await publicService.createPublicAppointment(
       clinicSlug,
       doctorId,
       patient,
       appointmentDate,
-      reason
+      reason,
+      registeredAtDate
     );
 
     successResponse(res, result, 201);

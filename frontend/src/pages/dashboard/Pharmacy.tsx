@@ -91,8 +91,8 @@ export const PharmacyPage: React.FC = () => {
   return (
     <NewDashboardLayout>
       <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+        {/* Header */}
+        <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold text-text-100">Аптека</h1>
           <p className="text-text-10 text-sm mt-1">Всего медикаментов: {medications.length}</p>

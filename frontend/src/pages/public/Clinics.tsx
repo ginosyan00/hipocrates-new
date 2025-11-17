@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card, Spinner } from '../../components/common';
+import { Button, Card, Spinner, BackButton } from '../../components/common';
 import { useClinics, useCities } from '../../hooks/usePublic';
 import { Clinic } from '../../types/api.types';
 
@@ -43,6 +43,11 @@ export const ClinicsPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-8 py-12">
+        {/* Back Button */}
+        <div className="mb-6">
+          <BackButton />
+        </div>
+
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-semibold text-text-100 mb-3">Стоматологические клиники</h1>
