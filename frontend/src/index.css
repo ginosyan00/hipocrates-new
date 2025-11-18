@@ -43,6 +43,81 @@ body {
   .transition-smooth {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
+  
+  /* Fade in animation - более плавная */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Fade out animation для плавного исчезновения */
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  
+  .animate-fade-out {
+    animation: fade-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  
+  /* Плавные переходы для карточек приёмов */
+  .appointment-card {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .appointment-card.entering {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  
+  .appointment-card.entered {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .appointment-card.exiting {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  
+  /* Shimmer animation for loading indicator - более плавная */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateX(400%);
+      opacity: 0.3;
+    }
+  }
+  
+  /* Плавные переходы для интерактивных элементов (не для всех, чтобы не замедлить рендеринг) */
+  button, a, input, select, textarea, [role="button"] {
+    transition-property: opacity, transform, background-color, border-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
 }
 
 /* Figma component styles */

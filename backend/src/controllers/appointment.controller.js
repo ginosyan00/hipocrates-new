@@ -12,7 +12,7 @@ import { successResponse } from '../utils/response.util.js';
  */
 export async function getAll(req, res, next) {
   try {
-    const { doctorId, patientId, status, date, page, limit } = req.query;
+    const { doctorId, patientId, status, date, time, week, category, page, limit } = req.query;
     const clinicId = req.user.clinicId;
 
     const result = await appointmentService.findAll(clinicId, {
@@ -20,6 +20,9 @@ export async function getAll(req, res, next) {
       patientId,
       status,
       date,
+      time,
+      week,
+      category,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
     });

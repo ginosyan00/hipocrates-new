@@ -11,11 +11,19 @@ export function useAppointments(params?: {
   patientId?: string;
   status?: string;
   date?: string;
+  time?: string;
+  week?: string;
+  category?: string;
 }) {
   return useQuery({
     queryKey: ['appointments', params],
     queryFn: () => appointmentService.getAll(params),
     staleTime: 10000, // 10 секунд
+    placeholderData: (previousData) => previousData, // Плавный переход - сохраняем предыдущие данные
+    refetchOnWindowFocus: false, // Не обновлять при фокусе окна
+    gcTime: 300000, // 5 минут - кешируем данные дольше
+    retry: 1, // Меньше попыток для быстрого ответа
+    refetchOnMount: false, // Не обновлять при монтировании если данные свежие
   });
 }
 

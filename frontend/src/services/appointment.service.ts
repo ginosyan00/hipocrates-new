@@ -15,6 +15,9 @@ export const appointmentService = {
     patientId?: string;
     status?: string;
     date?: string;
+    time?: string;
+    week?: string;
+    category?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<Appointment>> {

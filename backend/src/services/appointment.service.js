@@ -17,13 +17,31 @@ const STATUS_TRANSITIONS = {
 };
 
 /**
+ * Получить начало недели по ISO номеру недели
+ * @param {number} year - Год
+ * @param {number} week - Номер недели (1-53)
+ * @returns {Date} Дата начала недели (понедельник)
+ */
+function getWeekStart(year, week) {
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay();
+  const ISOweekStart = simple;
+  if (dow <= 4) {
+    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  }
+  return ISOweekStart;
+}
+
+/**
  * Получить все приёмы клиники
  * @param {string} clinicId - ID клиники
- * @param {object} options - Опции (doctorId, patientId, status, date, page, limit)
+ * @param {object} options - Опции (doctorId, patientId, status, date, time, week, category, page, limit)
  * @returns {Promise<object>} { appointments, meta }
  */
 export async function findAll(clinicId, options = {}) {
-  const { doctorId, patientId, status, date, page = 1, limit = 20 } = options;
+  const { doctorId, patientId, status, date, time, week, category, page = 1, limit = 20 } = options;
   const skip = (page - 1) * limit;
 
   // Построение where clause
@@ -34,6 +52,13 @@ export async function findAll(clinicId, options = {}) {
   if (doctorId) where.doctorId = doctorId;
   if (patientId) where.patientId = patientId;
   if (status) where.status = status;
+
+  // Фильтр по категории (reason) - для SQLite используем contains
+  if (category) {
+    where.reason = {
+      contains: category,
+    };
+  }
 
   // Фильтр по дате (весь день)
   if (date) {
@@ -46,6 +71,71 @@ export async function findAll(clinicId, options = {}) {
       gte: startOfDay,
       lte: endOfDay,
     };
+  }
+
+  // Фильтр по неделе
+  if (week) {
+    // week может быть в формате "YYYY-WW" или датой начала недели
+    let weekStart, weekEnd;
+    
+    if (week.includes('-W')) {
+      // Формат "YYYY-WW" (ISO week)
+      const [year, weekNum] = week.split('-W').map(Number);
+      weekStart = getWeekStart(year, weekNum);
+      weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+    } else {
+      // Формат даты начала недели
+      weekStart = new Date(week);
+      weekStart.setHours(0, 0, 0, 0);
+      // Устанавливаем на понедельник
+      const day = weekStart.getDay();
+      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+      weekStart.setDate(diff);
+      
+      weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+    }
+
+    where.appointmentDate = {
+      gte: weekStart,
+      lte: weekEnd,
+    };
+  }
+
+  // Фильтр по времени (часы) - применяется после фильтра по дате/неделе
+  // Для SQLite фильтруем через Prisma, который поддерживает фильтрацию по времени в дате
+  if (time) {
+    // time может быть в формате "HH" или "HH:MM"
+    const [hours, minutes = 0] = time.split(':').map(Number);
+    
+    // Если уже есть фильтр по дате/неделе, уточняем его временем
+    if (where.appointmentDate) {
+      const existingGte = where.appointmentDate.gte;
+      const existingLte = where.appointmentDate.lte;
+      
+      // Устанавливаем время начала и конца для фильтра
+      if (existingGte) {
+        existingGte.setHours(hours, minutes, 0, 0);
+      }
+      if (existingLte) {
+        // Для фильтра по времени устанавливаем конец часа
+        existingLte.setHours(hours, 59, 59, 999);
+      }
+    } else {
+      // Если нет фильтра по дате, создаем фильтр только по времени (сегодня)
+      const today = new Date();
+      today.setHours(hours, minutes, 0, 0);
+      const todayEnd = new Date(today);
+      todayEnd.setHours(hours, 59, 59, 999);
+      
+      where.appointmentDate = {
+        gte: today,
+        lte: todayEnd,
+      };
+    }
   }
 
   // Получаем приёмы и общее количество

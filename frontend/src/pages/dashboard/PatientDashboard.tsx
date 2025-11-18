@@ -5,6 +5,7 @@ import { Card, Button, Spinner } from '../../components/common';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePatientAppointments } from '../../hooks/usePatientAppointments';
 import { useClinics } from '../../hooks/usePublic';
+import { formatAppointmentDate, formatAppointmentTime } from '../../utils/dateFormat';
 
 /**
  * PatientDashboard
@@ -34,23 +35,14 @@ export const PatientDashboard: React.FC = () => {
     (apt: any) => new Date(apt.appointmentDate) < now || apt.status === 'completed'
   );
 
-  // Форматирование даты
+  // Форматирование даты и времени - используем утилиту для правильного форматирования
+  // Это исправляет проблемы с часовыми поясами при отображении времени приема
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatAppointmentDate(dateString, 'short');
   };
 
-  // Форматирование времени
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatAppointmentTime(dateString, 'short');
   };
 
   return (

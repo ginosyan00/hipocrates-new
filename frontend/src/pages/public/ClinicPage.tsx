@@ -41,7 +41,13 @@ export const ClinicPage: React.FC = () => {
     e.preventDefault();
 
     try {
-      const appointmentDateTime = `${formData.appointmentDate}T${formData.appointmentTime}:00Z`;
+      // ИСПРАВЛЕНИЕ: Создаем время БЕЗ Z (как локальное), затем конвертируем в UTC
+      // Это гарантирует, что время будет правильно сохраняться и отображаться
+      const appointmentDateTimeString = `${formData.appointmentDate}T${formData.appointmentTime}:00`;
+      const appointmentDateTime = new Date(appointmentDateTimeString);
+      
+      // Конвертируем в UTC для сохранения в БД
+      const appointmentDateTimeUTC = appointmentDateTime.toISOString();
       
       // Записываем локальное время пользователя в момент отправки формы
       // Сохраняем в формате ISO без конвертации в UTC, чтобы сохранить точное локальное время клиента
@@ -63,7 +69,7 @@ export const ClinicPage: React.FC = () => {
           phone: formData.patientPhone,
           email: formData.patientEmail || undefined,
         },
-        appointmentDate: appointmentDateTime,
+        appointmentDate: appointmentDateTimeUTC,
         reason: formData.reason || undefined,
         registeredAt: registeredAt,
       });

@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { NewDashboardLayout } from '../../components/dashboard/NewDashboardLayout';
 import { Button, Card, Spinner } from '../../components/common';
+import { AppointmentsTable } from '../../components/dashboard/AppointmentsTable';
+import { CreateAppointmentModal } from '../../components/dashboard/CreateAppointmentModal';
 import { useAppointments, useUpdateAppointmentStatus } from '../../hooks/useAppointments';
 import { userService } from '../../services/user.service';
 import { User } from '../../types/api.types';
+import { formatAppointmentDateTime } from '../../utils/dateFormat';
 
 /**
  * Appointments Page - Figma Design
@@ -19,6 +22,16 @@ export const AppointmentsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
   const [dateFilter, setDateFilter] = useState<string>(searchParams.get('date') || '');
   const [doctorFilter, setDoctorFilter] = useState<string>(searchParams.get('doctor') || '');
+  const [timeFilter, setTimeFilter] = useState<string>(searchParams.get('time') || '');
+  const [weekFilter, setWeekFilter] = useState<string>(searchParams.get('week') || '');
+  const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get('category') || '');
+  const [categoryInput, setCategoryInput] = useState<string>(searchParams.get('category') || ''); // Для debounce
+  
+  // Вид отображения (table/cards)
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  
+  // Модальное окно создания приёма
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   const [doctors, setDoctors] = useState<User[]>([]);
   const [isDoctorsLoading, setIsDoctorsLoading] = useState(true);
@@ -44,6 +57,17 @@ export const AppointmentsPage: React.FC = () => {
     loadDoctors();
   }, []);
 
+  // Debounce для поля категории - обновляем фильтр только после 500ms паузы в вводе
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCategoryFilter(categoryInput);
+    }, 500); // 500ms задержка
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [categoryInput]);
+
   // Синхронизация фильтров с URL параметрами
   // Обновляем URL только когда фильтры изменяются пользователем (не при первой загрузке)
   useEffect(() => {
@@ -57,15 +81,21 @@ export const AppointmentsPage: React.FC = () => {
     if (statusFilter) params.set('status', statusFilter);
     if (dateFilter) params.set('date', dateFilter);
     if (doctorFilter) params.set('doctor', doctorFilter);
+    if (timeFilter) params.set('time', timeFilter);
+    if (weekFilter) params.set('week', weekFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
     
     // Обновляем URL без перезагрузки страницы
     setSearchParams(params, { replace: true });
-  }, [statusFilter, dateFilter, doctorFilter, setSearchParams]);
+  }, [statusFilter, dateFilter, doctorFilter, timeFilter, weekFilter, categoryFilter, setSearchParams]);
 
-  const { data, isLoading, error } = useAppointments({
+  const { data, isLoading, isFetching, error } = useAppointments({
     status: statusFilter || undefined,
     date: dateFilter || undefined,
     doctorId: doctorFilter || undefined,
+    time: timeFilter || undefined,
+    week: weekFilter || undefined,
+    category: categoryFilter || undefined,
   });
   const updateStatusMutation = useUpdateAppointmentStatus();
 
@@ -109,17 +139,8 @@ export const AppointmentsPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <NewDashboardLayout>
-        <div className="flex justify-center items-center h-full">
-          <Spinner size="lg" />
-        </div>
-      </NewDashboardLayout>
-    );
-  }
-
-  if (error) {
+  // Показываем ошибку только если это первая загрузка и есть ошибка
+  if (error && !data) {
     return (
       <NewDashboardLayout>
         <div>
@@ -132,6 +153,46 @@ export const AppointmentsPage: React.FC = () => {
   }
 
   const appointments = data?.appointments || [];
+  
+  // Показываем спиннер только при первой загрузке (когда нет данных)
+  const isInitialLoading = isLoading && !data;
+  
+  // Отслеживаем изменения для плавного исчезновения/появления
+  const [displayedAppointments, setDisplayedAppointments] = useState(appointments);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const prevAppointmentIdsRef = useRef<string[]>(appointments.map(a => a.id));
+  
+  // Плавное обновление данных при изменении
+  useEffect(() => {
+    const currentIds = appointments.map(a => a.id);
+    const prevIds = prevAppointmentIdsRef.current;
+    
+    // Проверяем, изменился ли состав данных
+    const idsChanged = JSON.stringify([...currentIds].sort()) !== JSON.stringify([...prevIds].sort());
+    
+    if (idsChanged && prevIds.length > 0) {
+      // Если состав изменился и были предыдущие данные, делаем плавный переход
+      setIsTransitioning(true);
+      
+      // Небольшая задержка для fade-out эффекта
+      const transitionTimer = setTimeout(() => {
+        setDisplayedAppointments(appointments);
+        prevAppointmentIdsRef.current = currentIds;
+        
+        // Небольшая задержка перед fade-in
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 50);
+      }, 250); // Время для fade-out
+      
+      return () => clearTimeout(transitionTimer);
+    } else {
+      // Если данные не изменились или это первая загрузка, просто обновляем
+      setDisplayedAppointments(appointments);
+      prevAppointmentIdsRef.current = currentIds;
+      setIsTransitioning(false);
+    }
+  }, [appointments]);
 
   // Статистика по статусам
   const stats = {
@@ -164,7 +225,20 @@ export const AppointmentsPage: React.FC = () => {
 
   return (
     <NewDashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        {/* Сверхтонкий индикатор загрузки вверху страницы (почти незаметный) */}
+        {isFetching && !isInitialLoading && (
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-main-100/10 overflow-hidden z-50">
+            <div 
+              className="h-full bg-main-100/40 relative"
+              style={{ 
+                width: '25%',
+                animation: 'shimmer 2s ease-in-out infinite'
+              }} 
+            />
+          </div>
+        )}
+        
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -173,46 +247,73 @@ export const AppointmentsPage: React.FC = () => {
               Всего: {data?.meta.total || 0} назначений
             </p>
           </div>
-          <Button variant="primary">➕ Создать приём</Button>
+          <div className="flex gap-3">
+            {/* Переключение вида */}
+            <div className="flex border border-stroke rounded-sm overflow-hidden">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-4 py-2 text-sm font-normal transition-smooth ${
+                  viewMode === 'table'
+                    ? 'bg-main-100 text-white'
+                    : 'bg-bg-white text-text-50 hover:bg-bg-primary'
+                }`}
+              >
+                📊 Таблица
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`px-4 py-2 text-sm font-normal transition-smooth ${
+                  viewMode === 'cards'
+                    ? 'bg-main-100 text-white'
+                    : 'bg-bg-white text-text-50 hover:bg-bg-primary'
+                }`}
+              >
+                🃏 Карточки
+              </button>
+            </div>
+            <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
+              ➕ Создать приём
+            </Button>
+          </div>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className={`grid grid-cols-2 md:grid-cols-5 gap-4 transition-opacity duration-500 ease-out ${isFetching ? 'opacity-95' : 'opacity-100'}`}>
           <Card padding="md" className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <div className="text-center">
               <p className="text-xs text-blue-700 mb-1 font-medium">Всего</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+              <p className="text-2xl font-bold text-blue-600 transition-all duration-300">{stats.total}</p>
             </div>
           </Card>
           <Card padding="md" className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
             <div className="text-center">
               <p className="text-xs text-yellow-700 mb-1 font-medium">Ожидают</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              <p className="text-2xl font-bold text-yellow-600 transition-all duration-300">{stats.pending}</p>
             </div>
           </Card>
           <Card padding="md" className="bg-gradient-to-br from-main-10 to-main-100/10 border-main-100/20">
             <div className="text-center">
               <p className="text-xs text-main-100 mb-1 font-medium">Подтверждены</p>
-              <p className="text-2xl font-bold text-main-100">{stats.confirmed}</p>
+              <p className="text-2xl font-bold text-main-100 transition-all duration-300">{stats.confirmed}</p>
             </div>
           </Card>
           <Card padding="md" className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
             <div className="text-center">
               <p className="text-xs text-green-700 mb-1 font-medium">Завершены</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+              <p className="text-2xl font-bold text-green-600 transition-all duration-300">{stats.completed}</p>
             </div>
           </Card>
           <Card padding="md" className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
             <div className="text-center">
               <p className="text-xs text-gray-700 mb-1 font-medium">Отменены</p>
-              <p className="text-2xl font-bold text-gray-600">{stats.cancelled}</p>
+              <p className="text-2xl font-bold text-gray-600 transition-all duration-300">{stats.cancelled}</p>
             </div>
           </Card>
         </div>
 
       {/* Filters */}
       <Card padding="md">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm font-normal text-text-10 mb-2">Врач</label>
             <select
@@ -248,12 +349,48 @@ export const AppointmentsPage: React.FC = () => {
             <input
               type="date"
               value={dateFilter}
-              onChange={e => setDateFilter(e.target.value)}
+              onChange={e => {
+                setDateFilter(e.target.value);
+                // Очищаем фильтр по неделе при выборе даты
+                if (e.target.value) setWeekFilter('');
+              }}
+              className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm focus:outline-none focus:border-main-100 transition-smooth"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-normal text-text-10 mb-2">Время</label>
+            <input
+              type="time"
+              value={timeFilter}
+              onChange={e => setTimeFilter(e.target.value)}
+              className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm focus:outline-none focus:border-main-100 transition-smooth"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-normal text-text-10 mb-2">Неделя</label>
+            <input
+              type="week"
+              value={weekFilter}
+              onChange={e => {
+                setWeekFilter(e.target.value);
+                // Очищаем фильтр по дате при выборе недели
+                if (e.target.value) setDateFilter('');
+              }}
+              className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm focus:outline-none focus:border-main-100 transition-smooth"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-normal text-text-10 mb-2">Категория</label>
+            <input
+              type="text"
+              value={categoryInput}
+              onChange={e => setCategoryInput(e.target.value)}
+              placeholder="Процедура..."
               className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm focus:outline-none focus:border-main-100 transition-smooth"
             />
           </div>
         </div>
-        {(doctorFilter || statusFilter || dateFilter) && (
+        {(doctorFilter || statusFilter || dateFilter || timeFilter || weekFilter || categoryFilter) && (
           <div className="mt-4 pt-4 border-t border-stroke">
             <Button
               variant="secondary"
@@ -262,6 +399,10 @@ export const AppointmentsPage: React.FC = () => {
                 setDoctorFilter('');
                 setStatusFilter('');
                 setDateFilter('');
+                setTimeFilter('');
+                setWeekFilter('');
+                setCategoryFilter('');
+                setCategoryInput('');
                 // Очищаем URL параметры
                 setSearchParams({}, { replace: true });
               }}
@@ -273,16 +414,38 @@ export const AppointmentsPage: React.FC = () => {
       </Card>
 
       {/* Appointments List */}
-      {appointments.length === 0 ? (
+      {isInitialLoading ? (
+        <Card>
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="lg" />
+          </div>
+        </Card>
+      ) : appointments.length === 0 ? (
         <Card>
           <div className="text-center py-12 text-text-10 text-sm">
             Приёмы не найдены
           </div>
         </Card>
+      ) : viewMode === 'table' ? (
+        <Card padding="md" className={`transition-opacity duration-500 ease-out will-change-opacity ${isFetching ? 'opacity-95' : 'opacity-100'}`}>
+          <div className={isTransitioning ? 'opacity-0 transition-opacity duration-300 ease-out' : 'opacity-100 transition-opacity duration-500 ease-out'}>
+            <AppointmentsTable
+              appointments={displayedAppointments}
+              onStatusChange={handleStatusChange}
+              loadingAppointments={loadingAppointments}
+              errorMessages={errorMessages}
+            />
+          </div>
+        </Card>
       ) : (
-        <div className="space-y-4">
-          {appointments.map(appointment => (
-            <Card key={appointment.id} padding="md">
+        <div className={`space-y-4 transition-opacity duration-500 ease-out will-change-opacity ${isFetching ? 'opacity-95' : 'opacity-100'}`}>
+          <div className={isTransitioning ? 'opacity-0 transition-opacity duration-300 ease-out' : 'opacity-100 transition-opacity duration-500 ease-out'}>
+            {displayedAppointments.map((appointment) => (
+              <Card 
+                key={appointment.id} 
+                padding="md"
+                className="appointment-card transition-all duration-500 ease-out will-change-opacity animate-fade-in"
+              >
               <div className="flex items-start justify-between">
                 <div className="flex-1 space-y-3">
                   {/* Patient Info Header */}
@@ -320,13 +483,7 @@ export const AppointmentsPage: React.FC = () => {
                     <div className="bg-bg-primary p-3 rounded-sm">
                       <p className="font-normal text-text-10 mb-2">📅 Дата и время приёма:</p>
                       <p className="font-semibold text-text-50 text-sm">
-                        {new Date(appointment.appointmentDate).toLocaleString('ru-RU', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatAppointmentDateTime(appointment.appointmentDate, { dateFormat: 'long' })}
                       </p>
                       {/* Показываем registeredAt если есть, иначе используем createdAt для старых записей */}
                       {/* Отображаем время регистрации в том же формате, в котором клиент зарегистрировался */}
@@ -454,9 +611,20 @@ export const AppointmentsPage: React.FC = () => {
                 </div>
               </div>
             </Card>
-          ))}
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Модальное окно создания приёма */}
+      <CreateAppointmentModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => {
+          // Обновление произойдет автоматически через React Query
+          console.log('✅ [APPOINTMENTS] Приём успешно создан');
+        }}
+      />
       </div>
     </NewDashboardLayout>
   );
