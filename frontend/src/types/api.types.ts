@@ -194,17 +194,4 @@ export enum AppointmentStatus {
   Cancelled = 'cancelled',
 }
 
-export interface Medication {
-  id: string;
-  clinicId: string;
-  name: string;
-  dosage: string;
-  quantity: number;
-  price: number;
-  expiryDate: Date | string;
-  manufacturer: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 

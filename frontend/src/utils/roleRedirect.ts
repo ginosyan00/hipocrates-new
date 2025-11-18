@@ -97,8 +97,8 @@ export const canAccessPath = (userRole: UserRole | string, path: string): boolea
     [UserRole.PATIENT]: ['/dashboard/patient'],
     [UserRole.DOCTOR]: ['/dashboard/doctor'],
     [UserRole.PARTNER]: ['/dashboard/partner'],
-    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/pharmacy', '/dashboard/analytics', '/dashboard/settings'],
-    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/pharmacy', '/dashboard/analytics', '/dashboard/settings'],
+    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
+    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
   };
 
   const allowedPaths = rolePathMap[userRole] || [];
@@ -124,8 +124,8 @@ export const getAllowedPaths = (userRole: UserRole | string): string[] => {
     [UserRole.PATIENT]: ['/dashboard/patient'],
     [UserRole.DOCTOR]: ['/dashboard/doctor'],
     [UserRole.PARTNER]: ['/dashboard/partner'],
-    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/pharmacy', '/dashboard/analytics', '/dashboard/settings'],
-    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/pharmacy', '/dashboard/analytics', '/dashboard/settings'],
+    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
+    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
   };
 
   return rolePathMap[userRole] || ['/dashboard'];
