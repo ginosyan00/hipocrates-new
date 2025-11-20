@@ -65,9 +65,9 @@ router.get('/', authorize('ADMIN'), userController.getAll);
 /**
  * GET /api/v1/users/:id
  * Получить пользователя по ID
- * Доступ: только admin
+ * Доступ: ADMIN, CLINIC (клиника может получать данные своих врачей)
  */
-router.get('/:id', authorize('ADMIN'), userController.getById);
+router.get('/:id', authorize('ADMIN', 'CLINIC'), userController.getById);
 
 /**
  * POST /api/v1/users
@@ -79,9 +79,9 @@ router.post('/', authorize('ADMIN'), validate(createUserSchema), userController.
 /**
  * PUT /api/v1/users/:id
  * Обновить пользователя
- * Доступ: только admin
+ * Доступ: ADMIN, CLINIC (клиника может обновлять своих врачей)
  */
-router.put('/:id', authorize('ADMIN'), validate(updateUserSchema), userController.update);
+router.put('/:id', authorize('ADMIN', 'CLINIC'), validate(updateUserSchema), userController.update);
 
 /**
  * DELETE /api/v1/users/:id

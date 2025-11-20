@@ -35,6 +35,17 @@ export const clinicService = {
   },
 
   /**
+   * Загрузить главное изображение клиники
+   */
+  async uploadHeroImage(heroImage: string): Promise<{ id: string; name: string; heroImage: string | null; updatedAt: Date }> {
+    const { data } = await api.post<ApiResponse<{ id: string; name: string; heroImage: string | null; updatedAt: Date }>>(
+      '/clinic/hero-image',
+      { heroImage }
+    );
+    return data.data;
+  },
+
+  /**
    * Получить настройки клиники
    */
   async getSettings(): Promise<ClinicSettings> {

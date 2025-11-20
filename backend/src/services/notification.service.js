@@ -6,19 +6,20 @@ import { prisma } from '../config/database.js';
  */
 
 /**
- * Получить все уведомления пациента
+ * Получить все уведомления пациента или врача
  * @param {string} clinicId - ID клиники
- * @param {string} patientId - ID пациента
+ * @param {string} patientId - ID пациента (опционально)
+ * @param {string} userId - ID пользователя/врача (опционально)
  * @param {object} options - Опции (isRead, type, page, limit)
  * @returns {Promise<object>} { notifications, meta }
  */
-export async function findAll(clinicId, patientId, options = {}) {
+export async function findAll(clinicId, patientId = null, userId = null, options = {}) {
   // Валидация входных параметров
   if (!clinicId) {
     throw new Error('Clinic ID is required');
   }
-  if (!patientId) {
-    throw new Error('Patient ID is required');
+  if (!patientId && !userId) {
+    throw new Error('Patient ID or User ID is required');
   }
 
   const { isRead, type, page = 1, limit = 20 } = options;
@@ -27,8 +28,15 @@ export async function findAll(clinicId, patientId, options = {}) {
   // Построение where clause
   const where = {
     clinicId, // ВСЕГДА фильтруем по clinicId!
-    patientId, // Фильтруем по patientId
   };
+
+  // Фильтруем по patientId или userId
+  if (patientId) {
+    where.patientId = patientId;
+  }
+  if (userId) {
+    where.userId = userId;
+  }
 
   if (isRead !== undefined) {
     where.isRead = isRead === 'true' || isRead === true;
@@ -47,6 +55,22 @@ export async function findAll(clinicId, patientId, options = {}) {
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            specialization: true,
+          },
+        },
+      },
     }),
     prisma.notification.count({ where }),
   ]);
@@ -67,17 +91,26 @@ export async function findAll(clinicId, patientId, options = {}) {
 /**
  * Получить уведомление по ID
  * @param {string} clinicId - ID клиники
- * @param {string} patientId - ID пациента
+ * @param {string} patientId - ID пациента (опционально)
+ * @param {string} userId - ID пользователя/врача (опционально)
  * @param {string} notificationId - ID уведомления
  * @returns {Promise<object>} Notification
  */
-export async function findById(clinicId, patientId, notificationId) {
+export async function findById(clinicId, patientId, userId, notificationId) {
+  const where = {
+    id: notificationId,
+    clinicId, // ОБЯЗАТЕЛЬНО!
+  };
+
+  if (patientId) {
+    where.patientId = patientId;
+  }
+  if (userId) {
+    where.userId = userId;
+  }
+
   const notification = await prisma.notification.findFirst({
-    where: {
-      id: notificationId,
-      clinicId, // ОБЯЗАТЕЛЬНО!
-      patientId, // ОБЯЗАТЕЛЬНО!
-    },
+    where,
   });
 
   if (!notification) {
@@ -88,7 +121,7 @@ export async function findById(clinicId, patientId, notificationId) {
 }
 
 /**
- * Создать уведомление
+ * Создать уведомление для пациента
  * @param {string} clinicId - ID клиники
  * @param {string} patientId - ID пациента
  * @param {object} data - Данные уведомления (type, title, message, appointmentId)
@@ -112,6 +145,7 @@ export async function create(clinicId, patientId, data) {
     data: {
       clinicId, // ОБЯЗАТЕЛЬНО!
       patientId,
+      userId: null,
       type: data.type || 'other',
       title: data.title,
       message: data.message,
@@ -125,15 +159,56 @@ export async function create(clinicId, patientId, data) {
 }
 
 /**
+ * Создать уведомление для врача
+ * @param {string} clinicId - ID клиники
+ * @param {string} userId - ID врача
+ * @param {object} data - Данные уведомления (type, title, message, appointmentId)
+ * @returns {Promise<object>} Созданное уведомление
+ */
+export async function createForDoctor(clinicId, userId, data) {
+  // Проверяем что врач принадлежит клинике
+  const doctor = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      clinicId,
+      role: 'DOCTOR',
+      status: 'ACTIVE',
+    },
+  });
+
+  if (!doctor) {
+    throw new Error('Doctor not found or inactive');
+  }
+
+  // Создаем уведомление
+  const notification = await prisma.notification.create({
+    data: {
+      clinicId, // ОБЯЗАТЕЛЬНО!
+      patientId: null,
+      userId,
+      type: data.type || 'new_appointment',
+      title: data.title,
+      message: data.message,
+      appointmentId: data.appointmentId || null,
+    },
+  });
+
+  console.log(`✅ [NOTIFICATION] Создано уведомление ${notification.id} для врача ${userId}`);
+
+  return notification;
+}
+
+/**
  * Отметить уведомление как прочитанное
  * @param {string} clinicId - ID клиники
- * @param {string} patientId - ID пациента
+ * @param {string} patientId - ID пациента (опционально)
+ * @param {string} userId - ID пользователя/врача (опционально)
  * @param {string} notificationId - ID уведомления
  * @returns {Promise<object>} Обновленное уведомление
  */
-export async function markAsRead(clinicId, patientId, notificationId) {
+export async function markAsRead(clinicId, patientId, userId, notificationId) {
   // Проверяем что уведомление существует
-  await findById(clinicId, patientId, notificationId);
+  await findById(clinicId, patientId, userId, notificationId);
 
   // Обновляем статус
   const updated = await prisma.notification.update({
@@ -147,35 +222,57 @@ export async function markAsRead(clinicId, patientId, notificationId) {
 }
 
 /**
- * Отметить все уведомления пациента как прочитанные
+ * Отметить все уведомления пациента или врача как прочитанные
  * @param {string} clinicId - ID клиники
- * @param {string} patientId - ID пациента
+ * @param {string} patientId - ID пациента (опционально)
+ * @param {string} userId - ID пользователя/врача (опционально)
  * @returns {Promise<object>} { count } - количество обновленных уведомлений
  */
-export async function markAllAsRead(clinicId, patientId) {
-  // Проверяем что пациент принадлежит клинике
-  const patient = await prisma.patient.findFirst({
-    where: {
-      id: patientId,
-      clinicId,
-    },
-  });
+export async function markAllAsRead(clinicId, patientId, userId) {
+  const where = {
+    clinicId,
+    isRead: false,
+  };
 
-  if (!patient) {
-    throw new Error('Patient not found');
+  if (patientId) {
+    where.patientId = patientId;
+    // Проверяем что пациент принадлежит клинике
+    const patient = await prisma.patient.findFirst({
+      where: {
+        id: patientId,
+        clinicId,
+      },
+    });
+
+    if (!patient) {
+      throw new Error('Patient not found');
+    }
+  }
+
+  if (userId) {
+    where.userId = userId;
+    // Проверяем что врач принадлежит клинике
+    const doctor = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        clinicId,
+        role: 'DOCTOR',
+      },
+    });
+
+    if (!doctor) {
+      throw new Error('Doctor not found');
+    }
   }
 
   // Обновляем все непрочитанные уведомления
   const result = await prisma.notification.updateMany({
-    where: {
-      clinicId,
-      patientId,
-      isRead: false,
-    },
+    where,
     data: { isRead: true },
   });
 
-  console.log(`✅ [NOTIFICATION] Отмечено ${result.count} уведомлений как прочитанные для пациента ${patientId}`);
+  const target = patientId ? `пациента ${patientId}` : `врача ${userId}`;
+  console.log(`✅ [NOTIFICATION] Отмечено ${result.count} уведомлений как прочитанные для ${target}`);
 
   return { count: result.count };
 }
@@ -183,27 +280,34 @@ export async function markAllAsRead(clinicId, patientId) {
 /**
  * Получить количество непрочитанных уведомлений
  * @param {string} clinicId - ID клиники
- * @param {string} patientId - ID пациента
+ * @param {string} patientId - ID пациента (опционально)
+ * @param {string} userId - ID пользователя/врача (опционально)
  * @returns {Promise<number>} Количество непрочитанных уведомлений
  */
-export async function getUnreadCount(clinicId, patientId) {
+export async function getUnreadCount(clinicId, patientId = null, userId = null) {
   // Валидация входных параметров
   if (!clinicId) {
     throw new Error('Clinic ID is required');
   }
-  if (!patientId) {
-    throw new Error('Patient ID is required');
+  if (!patientId && !userId) {
+    throw new Error('Patient ID or User ID is required');
   }
 
-  console.log('🔵 [NOTIFICATION SERVICE] getUnreadCount запрос:', { clinicId, patientId });
+  const where = {
+    clinicId,
+    isRead: false,
+  };
 
-  const count = await prisma.notification.count({
-    where: {
-      clinicId,
-      patientId,
-      isRead: false,
-    },
-  });
+  if (patientId) {
+    where.patientId = patientId;
+  }
+  if (userId) {
+    where.userId = userId;
+  }
+
+  console.log('🔵 [NOTIFICATION SERVICE] getUnreadCount запрос:', { clinicId, patientId, userId });
+
+  const count = await prisma.notification.count({ where });
 
   console.log('✅ [NOTIFICATION SERVICE] getUnreadCount результат:', count);
 
@@ -213,12 +317,13 @@ export async function getUnreadCount(clinicId, patientId) {
 /**
  * Удалить уведомление
  * @param {string} clinicId - ID клиники
- * @param {string} patientId - ID пациента
+ * @param {string} patientId - ID пациента (опционально)
+ * @param {string} userId - ID пользователя/врача (опционально)
  * @param {string} notificationId - ID уведомления
  */
-export async function remove(clinicId, patientId, notificationId) {
+export async function remove(clinicId, patientId, userId, notificationId) {
   // Проверяем что уведомление существует
-  await findById(clinicId, patientId, notificationId);
+  await findById(clinicId, patientId, userId, notificationId);
 
   // Удаляем
   await prisma.notification.delete({

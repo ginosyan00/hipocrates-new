@@ -70,6 +70,31 @@ export async function uploadLogo(req, res, next) {
 }
 
 /**
+ * POST /api/v1/clinic/hero-image
+ * Загрузить главное изображение клиники
+ */
+export async function uploadHeroImage(req, res, next) {
+  try {
+    const { clinicId } = req.user;
+
+    if (!clinicId) {
+      return errorResponse(res, 'User is not associated with a clinic', 403);
+    }
+
+    const { heroImage } = req.body;
+
+    if (!heroImage) {
+      return errorResponse(res, 'Hero image is required', 400);
+    }
+
+    const clinic = await clinicService.updateClinicHeroImage(clinicId, heroImage);
+    successResponse(res, clinic);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * GET /api/v1/clinic/settings
  * Получить настройки клиники
  */

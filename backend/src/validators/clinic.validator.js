@@ -144,6 +144,15 @@ export const uploadLogoSchema = Joi.object({
 });
 
 /**
+ * Загрузка главного изображения
+ */
+export const uploadHeroImageSchema = Joi.object({
+  heroImage: Joi.string().uri().optional().messages({
+    'string.uri': 'Hero image must be a valid URL or base64 data URI',
+  }),
+});
+
+/**
  * Обновление настроек клиники
  */
 export const updateSettingsSchema = Joi.object({

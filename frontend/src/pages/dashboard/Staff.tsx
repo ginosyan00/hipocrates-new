@@ -127,8 +127,16 @@ export const StaffPage: React.FC = () => {
           <Card key={user.id} padding="md">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 bg-main-10 rounded-sm flex items-center justify-center flex-shrink-0">
-                  <img src={doctorIcon} alt="Doctor" className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-full overflow-hidden border border-stroke bg-main-10 flex items-center justify-center flex-shrink-0">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img src={doctorIcon} alt="Doctor" className="w-6 h-6" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-medium text-text-100 truncate">{user.name}</h3>

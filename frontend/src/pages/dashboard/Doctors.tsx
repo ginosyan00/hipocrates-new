@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NewDashboardLayout } from '../../components/dashboard/NewDashboardLayout';
-import { Button, Input, Card, Modal, Spinner } from '../../components/common';
+import { Button, Input, Card, Spinner } from '../../components/common';
 import { useDoctors } from '../../hooks/useUsers';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClinic } from '../../hooks/useClinic';
 import { User } from '../../types/api.types';
-import { AddDoctorModal } from '../../components/dashboard/AddDoctorModal';
 
 // Import icons
 import searchIcon from '../../assets/icons/search.svg';
@@ -23,22 +22,18 @@ export const DoctorsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [specializationFilter, setSpecializationFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDoctor, setSelectedDoctor] = useState<User | null>(null);
 
   // Загружаем врачей и клинику
-  const { data: doctorsData, isLoading, refetch } = useDoctors();
+  const { data: doctorsData, isLoading } = useDoctors();
   const { data: clinic } = useClinic();
   const doctors = doctorsData || [];
 
   // Проверка: только CLINIC может добавлять врачей
   const canAddDoctors = user?.role === 'CLINIC';
 
-  // Обработчик клика на врача - редирект на страницу врача
+  // Обработчик клика на врача - переход на страницу настроек
   const handleDoctorClick = (doctor: User) => {
-    if (clinic?.slug) {
-      navigate(`/clinic/${clinic.slug}/doctor/${doctor.id}`);
-    }
+    navigate(`/dashboard/clinic/doctors/${doctor.id}/settings`);
   };
 
   // Фильтрация врачей
@@ -81,9 +76,6 @@ export const DoctorsPage: React.FC = () => {
     return Array.from(new Set(specs)).sort();
   }, [doctors]);
 
-  const handleDoctorCreated = () => {
-    refetch();
-  };
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -145,7 +137,7 @@ export const DoctorsPage: React.FC = () => {
               </button>
             </div>
             {canAddDoctors && (
-              <Button onClick={() => setIsModalOpen(true)} variant="primary">
+              <Button onClick={() => navigate('/dashboard/doctors/add')} variant="primary">
                 ➕ Добавить врача
               </Button>
             )}
@@ -245,12 +237,20 @@ export const DoctorsPage: React.FC = () => {
                       >
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-main-10 rounded-sm flex items-center justify-center flex-shrink-0">
-                              <img
-                                src={doctorIcon}
-                                alt="Doctor"
-                                className="w-5 h-5"
-                              />
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-stroke bg-main-10 flex items-center justify-center flex-shrink-0">
+                              {doctor.avatar ? (
+                                <img
+                                  src={doctor.avatar}
+                                  alt={doctor.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <img
+                                  src={doctorIcon}
+                                  alt="Doctor"
+                                  className="w-5 h-5"
+                                />
+                              )}
                             </div>
                             <div>
                               <div className="text-sm font-medium text-text-100">
@@ -298,7 +298,7 @@ export const DoctorsPage: React.FC = () => {
                               handleDoctorClick(doctor);
                             }}
                           >
-                            Подробнее
+                            Настройки
                           </Button>
                         </td>
                       </tr>
@@ -332,12 +332,20 @@ export const DoctorsPage: React.FC = () => {
                   >
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-14 h-14 bg-main-10 rounded-sm flex items-center justify-center flex-shrink-0">
-                          <img
-                            src={doctorIcon}
-                            alt="Doctor"
-                            className="w-7 h-7"
-                          />
+                        <div className="w-14 h-14 rounded-full overflow-hidden border border-stroke bg-main-10 flex items-center justify-center flex-shrink-0">
+                          {doctor.avatar ? (
+                            <img
+                              src={doctor.avatar}
+                              alt={doctor.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={doctorIcon}
+                              alt="Doctor"
+                              className="w-7 h-7"
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-semibold text-text-100 truncate">
@@ -389,14 +397,14 @@ export const DoctorsPage: React.FC = () => {
                       <div className="pt-2 border-t border-stroke">
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant="primary"
                           className="w-full"
                           onClick={e => {
                             e.stopPropagation();
                             handleDoctorClick(doctor);
                           }}
                         >
-                          Подробнее
+                          Настройки
                         </Button>
                       </div>
                     </div>
@@ -405,111 +413,6 @@ export const DoctorsPage: React.FC = () => {
               </div>
             )}
           </>
-        )}
-
-        {/* Doctor Detail Modal - больше не используется, но оставляем для совместимости */}
-        {selectedDoctor && (
-          <Modal
-            isOpen={!!selectedDoctor}
-            onClose={() => setSelectedDoctor(null)}
-            title={`Информация о враче: ${selectedDoctor.name}`}
-            size="lg"
-          >
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 bg-main-10 rounded-sm flex items-center justify-center flex-shrink-0">
-                  <img src={doctorIcon} alt="Doctor" className="w-8 h-8" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-text-100">
-                    {selectedDoctor.name}
-                  </h3>
-                  <p className="text-sm text-main-100 font-medium">
-                    {selectedDoctor.specialization || 'Специализация не указана'}
-                  </p>
-                  <div className="mt-2">{getStatusBadge(selectedDoctor.status)}</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-stroke">
-                <div>
-                  <p className="text-xs text-text-10 mb-1">Email</p>
-                  <p className="text-sm text-text-100">{selectedDoctor.email}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-10 mb-1">Телефон</p>
-                  <p className="text-sm text-text-100">
-                    {selectedDoctor.phone || '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-10 mb-1">Опыт работы</p>
-                  <p className="text-sm text-text-100">
-                    {selectedDoctor.experience
-                      ? `${selectedDoctor.experience} ${selectedDoctor.experience === 1 ? 'год' : selectedDoctor.experience < 5 ? 'года' : 'лет'}`
-                      : '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-10 mb-1">Номер лицензии</p>
-                  <p className="text-sm text-text-100 font-mono">
-                    {selectedDoctor.licenseNumber || '-'}
-                  </p>
-                </div>
-                {selectedDoctor.dateOfBirth && (
-                  <div>
-                    <p className="text-xs text-text-10 mb-1">Дата рождения</p>
-                    <p className="text-sm text-text-100">
-                      {new Date(selectedDoctor.dateOfBirth).toLocaleDateString(
-                        'ru-RU'
-                      )}
-                    </p>
-                  </div>
-                )}
-                {selectedDoctor.gender && (
-                  <div>
-                    <p className="text-xs text-text-10 mb-1">Пол</p>
-                    <p className="text-sm text-text-100">
-                      {selectedDoctor.gender === 'male'
-                        ? 'Мужской'
-                        : selectedDoctor.gender === 'female'
-                        ? 'Женский'
-                        : 'Другой'}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-stroke">
-                <p className="text-xs text-text-10 mb-1">Дата регистрации</p>
-                <p className="text-sm text-text-100">
-                  {new Date(selectedDoctor.createdAt).toLocaleDateString('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="secondary"
-                  onClick={() => setSelectedDoctor(null)}
-                >
-                  Закрыть
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        )}
-
-        {/* Add Doctor Modal */}
-        {canAddDoctors && (
-          <AddDoctorModal
-            isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            onSuccess={handleDoctorCreated}
-          />
         )}
       </div>
     </NewDashboardLayout>

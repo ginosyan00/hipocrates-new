@@ -74,7 +74,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({ isOpen, onClose,
       onSuccess();
       onClose();
 
-      // Редирект на страницу врача через landing
+      // Редирект на публичную страницу врача (landing)
       navigate(`/clinic/${clinicSlug}/doctor/${createdDoctor.id}`);
     } catch (err: any) {
       console.error('🔴 [ADD DOCTOR MODAL] Ошибка:', err.message);

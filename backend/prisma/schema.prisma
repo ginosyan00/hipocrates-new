@@ -24,6 +24,7 @@ model Clinic {
   city          String
   about         String?
   logo          String?
+  heroImage     String?   // Главное изображение для страницы клиники
   workingHours  String?   // JSON as String in SQLite
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -34,6 +35,7 @@ model Clinic {
   appointments  Appointment[]
   notifications Notification[]
   settings      ClinicSettings?
+  certificates  Certificate[]
 
   @@map("clinics")
 }
@@ -79,6 +81,7 @@ model User {
   // Relations
   clinic         Clinic?     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   appointments   Appointment[]
+  notifications  Notification[]
 
   @@index([clinicId])
   @@index([email])
@@ -154,8 +157,9 @@ model Appointment {
 model Notification {
   id          String    @id @default(uuid())
   clinicId    String
-  patientId   String
-  type        String    // cancellation | reschedule | reminder | confirmation | other
+  patientId   String?   // Опционально - для уведомлений врачей
+  userId      String?   // Опционально - для уведомлений врачей (DOCTOR)
+  type        String    // cancellation | reschedule | reminder | confirmation | new_appointment | other
   title       String
   message     String
   isRead      Boolean   @default(false)
@@ -165,10 +169,12 @@ model Notification {
 
   // Relations
   clinic      Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient     Patient?  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([clinicId])
   @@index([patientId])
+  @@index([userId])
   @@index([isRead])
   @@index([createdAt])
   @@map("notifications")
@@ -202,5 +208,32 @@ model ClinicSettings {
 
   @@index([clinicId])
   @@map("clinic_settings")
+}
+
+// ============================================
+// CERTIFICATE (Сертификат клиники)
+// ============================================
+
+model Certificate {
+  id              String    @id @default(uuid())
+  clinicId        String
+  title           String    // Название сертификата
+  certificateNumber String? // Номер сертификата
+  issuedBy        String?   // Организация, выдавшая сертификат
+  issueDate       DateTime? // Дата выдачи
+  expiryDate      DateTime? // Дата окончания действия
+  fileUrl         String    // URL файла (base64 или путь к файлу)
+  fileType        String    // Тип файла: pdf, jpg, png
+  fileSize        Int?      // Размер файла в байтах
+  isVerified      Boolean   @default(false) // Верифицирован ли администратором (для будущего использования)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  clinic          Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([isVerified])
+  @@map("certificates")
 }
 

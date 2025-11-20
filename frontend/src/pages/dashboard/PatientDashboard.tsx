@@ -2,9 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NewDashboardLayout } from '../../components/dashboard/NewDashboardLayout';
 import { Card, Button, Spinner } from '../../components/common';
+import { PatientAppointmentsStats } from '../../components/dashboard/PatientAppointmentsStats';
+import { PatientMiniChart } from '../../components/dashboard/PatientMiniChart';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePatientAppointments } from '../../hooks/usePatientAppointments';
-import { useClinics } from '../../hooks/usePublic';
 import { useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../../hooks/useNotifications';
 import { formatAppointmentDate, formatAppointmentTime } from '../../utils/dateFormat';
 import { Notification, NotificationType } from '../../types/api.types';
@@ -17,13 +18,10 @@ export const PatientDashboard: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
 
-  // Загружаем appointments пациента
+  // Загружаем appointments пациента (больше данных для статистики и графиков)
   const { data: appointmentsData, isLoading: isLoadingAppointments } = usePatientAppointments({
-    limit: 20,
+    limit: 100, // Больше данных для графиков и статистики
   });
-
-  // Загружаем список клиник
-  const { data: clinicsData, isLoading: isLoadingClinics } = useClinics();
 
   // Загружаем уведомления
   const { data: notificationsData, isLoading: isLoadingNotifications } = useNotifications({
@@ -36,7 +34,6 @@ export const PatientDashboard: React.FC = () => {
   const notifications = notificationsData?.notifications || [];
 
   const appointments = appointmentsData?.appointments || [];
-  const clinics = clinicsData?.data || [];
 
   // Разделяем appointments на предстоящие и завершенные
   const now = new Date();
@@ -61,85 +58,79 @@ export const PatientDashboard: React.FC = () => {
     <NewDashboardLayout>
       <div className="space-y-6">
         {/* Welcome Header */}
-        <div className="bg-gradient-to-r from-main-100 to-blue-500 rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-main-100 via-blue-500 to-purple-600 rounded-2xl p-6 md:p-8 text-white shadow-xl animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold mb-2">
+            <div className="flex-1">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
                 Здравствуйте, {user?.name}! 👋
               </h1>
-              <p className="text-white/80 text-sm">
-                Рады видеть вас снова. У вас {upcomingAppointments.length} предстоящих {upcomingAppointments.length === 1 ? 'запись' : 'записей'}.
+              <p className="text-white/90 text-sm md:text-base">
+                Рады видеть вас снова. У вас <strong>{upcomingAppointments.length}</strong> предстоящих {upcomingAppointments.length === 1 ? 'запись' : 'записей'}.
               </p>
+              {upcomingAppointments.length > 0 && (
+                <p className="text-white/70 text-xs mt-2">
+                  Ближайшая запись: {formatDate(upcomingAppointments[0]?.appointmentDate)} в {formatTime(upcomingAppointments[0]?.appointmentDate)}
+                </p>
+              )}
             </div>
-            <div className="hidden md:block text-6xl opacity-20">
+            <div className="hidden md:block text-6xl md:text-8xl opacity-20 animate-pulse">
               👤
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card padding="lg" className="hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-10 mb-2">Предстоящие</p>
-                <h3 className="text-3xl font-bold text-main-100">{upcomingAppointments.length}</h3>
-                <p className="text-xs text-text-10 mt-1">записи</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📅</span>
-              </div>
-            </div>
-          </Card>
+        {/* Расширенная статистика */}
+        <PatientAppointmentsStats
+          appointments={appointments}
+          isLoading={isLoadingAppointments}
+        />
 
-          <Card padding="lg" className="hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-10 mb-2">Всего визитов</p>
-                <h3 className="text-3xl font-bold text-green-600">{recentVisits.length}</h3>
-                <p className="text-xs text-text-10 mt-1">посещений</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">🏥</span>
-              </div>
-            </div>
-          </Card>
+        {/* Мини-графики */}
+        {appointments.length > 0 && (
+          <PatientMiniChart 
+            appointments={appointments} 
+            isLoading={isLoadingAppointments}
+          />
+        )}
 
-          <Card padding="lg" className="hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-10 mb-2">Рецепты</p>
-                <h3 className="text-3xl font-bold text-purple-600">3</h3>
-                <p className="text-xs text-text-10 mt-1">активных</p>
+        {/* Уведомления карточка (для быстрого доступа) */}
+        {unreadCount > 0 && (
+          <Card padding="lg" className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 animate-in fade-in slide-in-from-left-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-yellow-400 rounded-xl flex items-center justify-center shadow-lg animate-pulse">
+                  <span className="text-3xl">🔔</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-900">
+                    {unreadCount} {unreadCount === 1 ? 'новое уведомление' : unreadCount < 5 ? 'новых уведомления' : 'новых уведомлений'}
+                  </h3>
+                  <p className="text-sm text-orange-700">У вас есть непрочитанные уведомления</p>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">💊</span>
-              </div>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                onClick={() => markAllAsReadMutation.mutate()}
+                isLoading={markAllAsReadMutation.isPending}
+              >
+                Прочитать все
+              </Button>
             </div>
           </Card>
-
-          <Card padding="lg" className="hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-10 mb-2">Уведомления</p>
-                <h3 className="text-3xl font-bold text-orange-600">{unreadCount}</h3>
-                <p className="text-xs text-text-10 mt-1">{unreadCount === 1 ? 'новое' : unreadCount > 1 && unreadCount < 5 ? 'новых' : 'новых'}</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">🔔</span>
-              </div>
-            </div>
-          </Card>
-        </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Upcoming Appointments */}
-          <div className="lg:col-span-2">
-            <Card padding="lg">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-text-50">Предстоящие записи</h2>
-                <Button variant="primary" size="sm" onClick={() => navigate('/clinics')}>
+          <div className="lg:col-span-2 space-y-6">
+            <Card padding="lg" className="border border-stroke shadow-md hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-text-50 mb-1">Предстоящие записи</h2>
+                  <p className="text-xs text-text-10">Ваши ближайшие приемы</p>
+                </div>
+                <Button variant="primary" size="sm" onClick={() => navigate('/dashboard/patient/clinics')} className="shadow-md hover:shadow-lg transition-shadow">
                   ➕ Записаться
                 </Button>
               </div>
@@ -152,49 +143,63 @@ export const PatientDashboard: React.FC = () => {
                 <div className="text-center py-8 text-text-10">
                   <div className="text-4xl mb-2">📅</div>
                   <p className="text-sm mb-4">Нет предстоящих записей</p>
-                  <Button variant="primary" size="sm" onClick={() => navigate('/clinics')}>
+                  <Button variant="primary" size="sm" onClick={() => navigate('/dashboard/patient/clinics')}>
                     Записаться на прием
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {upcomingAppointments.map((appointment: any) => (
-                    <Card key={appointment.id} className="border border-stroke hover:border-main-100 transition-colors" padding="md">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-main-100 bg-opacity-10 rounded-lg flex items-center justify-center">
-                            <span className="text-xl">⚕️</span>
+                  {upcomingAppointments.map((appointment: any, index: number) => (
+                    <Card
+                      key={appointment.id}
+                      className="border-2 border-stroke hover:border-main-100 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
+                      padding="md"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-14 h-14 bg-gradient-to-br from-main-100 to-blue-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                            <span className="text-2xl">⚕️</span>
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-text-50 text-sm">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-text-50 text-base mb-1">
                               {appointment.doctor?.name || 'Врач'}
                             </h3>
-                            <p className="text-xs text-text-10">
+                            <p className="text-xs font-medium text-main-100 mb-1">
                               {appointment.doctor?.specialization || 'Специализация не указана'}
                             </p>
-                            <p className="text-xs text-text-10 mt-1">
-                              📍 {appointment.clinic?.name || 'Клиника'}
+                            <p className="text-xs text-text-10 flex items-center gap-1">
+                              <span>📍</span>
+                              {appointment.clinic?.name || 'Клиника'}
                             </p>
                             {appointment.reason && (
-                              <p className="text-xs text-text-10 mt-1">
-                                Причина: {appointment.reason}
+                              <p className="text-xs text-text-10 mt-1 line-clamp-1">
+                                <span className="font-medium">Причина:</span> {appointment.reason}
                               </p>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-text-50">
-                            {formatDate(appointment.appointmentDate)}
-                          </p>
-                          <p className="text-xs text-text-10">{formatTime(appointment.appointmentDate)}</p>
-                          <span className={`inline-block px-2 py-1 mt-2 text-xs rounded ${
-                            appointment.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                            appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {appointment.status === 'confirmed' ? 'Подтверждено' :
-                             appointment.status === 'pending' ? 'Ожидает' :
-                             appointment.status}
+                        <div className="text-right flex-shrink-0">
+                          <div className="bg-main-10 px-3 py-2 rounded-lg mb-2">
+                            <p className="text-sm font-bold text-main-100">
+                              {formatDate(appointment.appointmentDate)}
+                            </p>
+                            <p className="text-xs font-medium text-main-100">{formatTime(appointment.appointmentDate)}</p>
+                          </div>
+                          <span
+                            className={`inline-block px-3 py-1 text-xs font-medium rounded-full shadow-sm ${
+                              appointment.status === 'confirmed'
+                                ? 'bg-green-100 text-green-700 border border-green-200'
+                                : appointment.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                                : 'bg-gray-100 text-gray-700 border border-gray-200'
+                            }`}
+                          >
+                            {appointment.status === 'confirmed'
+                              ? '✅ Подтверждено'
+                              : appointment.status === 'pending'
+                              ? '⏳ Ожидает'
+                              : appointment.status}
                           </span>
                         </div>
                       </div>
@@ -205,122 +210,132 @@ export const PatientDashboard: React.FC = () => {
             </Card>
 
             {/* Recent Visits */}
-            <Card padding="lg" className="mt-6">
-              <h2 className="text-lg font-semibold text-text-50 mb-4">Недавние визиты</h2>
+            <Card padding="lg" className="border border-stroke shadow-md hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-text-50 mb-1">Недавние визиты</h2>
+                <p className="text-xs text-text-10">История завершенных приемов</p>
+              </div>
               {recentVisits.length === 0 ? (
-                <div className="text-center py-8 text-text-10">
-                  <div className="text-4xl mb-2">✅</div>
-                  <p className="text-sm">Нет завершенных визитов</p>
+                <div className="text-center py-12 text-text-10">
+                  <div className="text-5xl mb-3 animate-pulse">✅</div>
+                  <p className="text-sm font-medium">Нет завершенных визитов</p>
+                  <p className="text-xs mt-1">Ваша история визитов появится здесь после завершения приема</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {recentVisits.slice(0, 5).map((visit: any) => (
-                    <div key={visit.id} className="flex items-center justify-between p-3 border border-stroke rounded-lg hover:bg-bg-secondary transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                          <span className="text-lg">✅</span>
+                  {recentVisits.slice(0, 5).map((visit: any, index: number) => (
+                    <div
+                      key={visit.id}
+                      className="flex items-center justify-between p-4 border-2 border-stroke rounded-xl hover:border-green-200 hover:bg-green-50 transition-all duration-300 transform hover:-translate-x-1 animate-in fade-in slide-in-from-left-4"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                          <span className="text-xl">✅</span>
                         </div>
-                        <div>
-                          <h3 className="font-medium text-text-50 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-text-50 text-sm mb-1">
                             {visit.doctor?.name || 'Врач'}
                           </h3>
-                          <p className="text-xs text-text-10">
+                          <p className="text-xs font-medium text-green-600 mb-1">
                             {visit.doctor?.specialization || 'Специализация не указана'}
                           </p>
                           {visit.reason && (
-                            <p className="text-xs text-text-10 mt-1">Причина: {visit.reason}</p>
+                            <p className="text-xs text-text-10 line-clamp-1">
+                              <span className="font-medium">Причина:</span> {visit.reason}
+                            </p>
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-text-10">{formatDate(visit.appointmentDate)}</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs font-medium text-text-50 whitespace-nowrap">
+                          {formatDate(visit.appointmentDate)}
+                        </p>
+                        <p className="text-xs text-text-10">{formatTime(visit.appointmentDate)}</p>
+                      </div>
                     </div>
                   ))}
+                  {recentVisits.length > 5 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full mt-4"
+                      onClick={() => navigate('/dashboard/patient/appointments')}
+                    >
+                      Показать все визиты ({recentVisits.length})
+                    </Button>
+                  )}
                 </div>
               )}
             </Card>
 
-            {/* Clinics List */}
-            <Card padding="lg" className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-text-50">Доступные клиники</h2>
-                <Button variant="primary" size="sm" onClick={() => navigate('/clinics')}>
-                  Все клиники
-                </Button>
-              </div>
-              {isLoadingClinics ? (
-                <div className="flex justify-center py-4">
-                  <Spinner />
-                </div>
-              ) : clinics.length === 0 ? (
-                <div className="text-center py-4 text-text-10">
-                  <p className="text-sm">Клиники не найдены</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {clinics.slice(0, 5).map((clinic: any) => (
-                    <button
-                      key={clinic.id}
-                      onClick={() => navigate(`/clinic/${clinic.slug}`)}
-                      className="w-full p-3 border border-stroke rounded-lg hover:border-main-100 hover:bg-main-100 hover:bg-opacity-5 transition-all text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-main-100 bg-opacity-10 rounded-lg flex items-center justify-center">
-                          <span className="text-lg">🏥</span>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-text-50 text-sm">{clinic.name}</h3>
-                          <p className="text-xs text-text-10">{clinic.city}</p>
-                        </div>
-                        <span className="text-xs text-text-10">→</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </Card>
           </div>
 
           {/* Sidebar - Quick Actions */}
           <div className="space-y-6">
             {/* Quick Actions */}
-            <Card padding="lg">
-              <h2 className="text-lg font-semibold text-text-50 mb-4">Быстрые действия</h2>
-              <div className="space-y-2">
-                <button className="w-full p-3 border-2 border-main-100 bg-main-100 bg-opacity-5 rounded-lg hover:bg-opacity-10 transition-all text-left">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">📅</span>
+            <Card padding="lg" className="border border-stroke shadow-md hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-right-4">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-text-50 mb-1">Быстрые действия</h2>
+                <p className="text-xs text-text-10">Часто используемые функции</p>
+              </div>
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigate('/dashboard/patient/clinics')}
+                  className="w-full p-4 border-2 border-main-100 bg-gradient-to-r from-main-100 bg-opacity-10 to-blue-500 bg-opacity-5 rounded-xl hover:from-main-100 hover:to-blue-500 hover:bg-opacity-10 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg text-left animate-in fade-in slide-in-from-right-4"
+                  style={{ animationDelay: '0ms' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-main-100 to-blue-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                      <span className="text-xl">🏥</span>
+                    </div>
                     <div>
-                      <h3 className="font-medium text-main-100 text-sm">Записаться на прием</h3>
-                      <p className="text-xs text-text-10">Выбрать врача и время</p>
+                      <h3 className="font-bold text-main-100 text-sm mb-1">Выбрать клинику</h3>
+                      <p className="text-xs text-text-10">Просмотреть все доступные клиники</p>
                     </div>
                   </div>
                 </button>
 
-                <button className="w-full p-3 border border-stroke rounded-lg hover:border-main-100 hover:bg-main-100 hover:bg-opacity-5 transition-all text-left">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">📋</span>
+                <button
+                  className="w-full p-4 border-2 border-stroke rounded-xl hover:border-main-100 hover:bg-main-100 hover:bg-opacity-5 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-md text-left animate-in fade-in slide-in-from-right-4"
+                  style={{ animationDelay: '100ms' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                      <span className="text-xl">📋</span>
+                    </div>
                     <div>
-                      <h3 className="font-medium text-text-50 text-sm">Мед. карта</h3>
+                      <h3 className="font-bold text-text-50 text-sm mb-1">Мед. карта</h3>
                       <p className="text-xs text-text-10">История лечения</p>
                     </div>
                   </div>
                 </button>
 
-                <button className="w-full p-3 border border-stroke rounded-lg hover:border-main-100 hover:bg-main-100 hover:bg-opacity-5 transition-all text-left">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">💊</span>
+                <button
+                  className="w-full p-4 border-2 border-stroke rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-md text-left animate-in fade-in slide-in-from-right-4"
+                  style={{ animationDelay: '200ms' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                      <span className="text-xl">💊</span>
+                    </div>
                     <div>
-                      <h3 className="font-medium text-text-50 text-sm">Рецепты</h3>
+                      <h3 className="font-bold text-text-50 text-sm mb-1">Рецепты</h3>
                       <p className="text-xs text-text-10">Активные назначения</p>
                     </div>
                   </div>
                 </button>
 
-                <button className="w-full p-3 border border-stroke rounded-lg hover:border-main-100 hover:bg-main-100 hover:bg-opacity-5 transition-all text-left">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">💬</span>
+                <button
+                  className="w-full p-4 border-2 border-stroke rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-md text-left animate-in fade-in slide-in-from-right-4"
+                  style={{ animationDelay: '300ms' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                      <span className="text-xl">💬</span>
+                    </div>
                     <div>
-                      <h3 className="font-medium text-text-50 text-sm">Консультация</h3>
+                      <h3 className="font-bold text-text-50 text-sm mb-1">Консультация</h3>
                       <p className="text-xs text-text-10">Задать вопрос</p>
                     </div>
                   </div>
@@ -329,9 +344,12 @@ export const PatientDashboard: React.FC = () => {
             </Card>
 
             {/* Notifications */}
-            <Card padding="lg">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-text-50">Уведомления</h2>
+            <Card padding="lg" className="border border-stroke shadow-md hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-right-4">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-text-50 mb-1">Уведомления</h2>
+                  <p className="text-xs text-text-10">Важные обновления</p>
+                </div>
                 {unreadCount > 0 && (
                   <Button
                     variant="secondary"
@@ -416,27 +434,31 @@ export const PatientDashboard: React.FC = () => {
             </Card>
 
             {/* Health Tips */}
-            <Card className="bg-gradient-to-br from-blue-50 to-green-50 border-blue-200" padding="lg">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">💡</span>
-                <div>
-                  <h3 className="font-semibold text-text-50 text-sm mb-2">Совет дня</h3>
-                  <p className="text-xs text-text-10 leading-relaxed">
-                    Пейте не менее 8 стаканов воды в день для поддержания здоровья!
+            <Card className="bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 border-2 border-blue-200 shadow-md hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-right-4" padding="lg">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-green-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 animate-pulse">
+                  <span className="text-2xl">💡</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-text-50 text-base mb-2">Совет дня</h3>
+                  <p className="text-sm text-text-10 leading-relaxed">
+                    Пейте не менее 8 стаканов воды в день для поддержания здоровья и хорошего самочувствия!
                   </p>
                 </div>
               </div>
             </Card>
 
             {/* Contact Support */}
-            <Card className="bg-main-100 bg-opacity-5 border-main-100" padding="md">
+            <Card className="bg-gradient-to-br from-main-100 bg-opacity-10 to-blue-500 bg-opacity-5 border-2 border-main-100 shadow-md hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-right-4" padding="lg">
               <div className="text-center">
-                <span className="text-2xl">📞</span>
-                <h3 className="font-semibold text-text-50 text-sm mt-2 mb-1">Нужна помощь?</h3>
-                <p className="text-xs text-text-10 mb-3">
-                  Свяжитесь с нами
+                <div className="w-16 h-16 bg-gradient-to-br from-main-100 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
+                  <span className="text-3xl">📞</span>
+                </div>
+                <h3 className="font-bold text-text-50 text-base mb-2">Нужна помощь?</h3>
+                <p className="text-xs text-text-10 mb-4">
+                  Свяжитесь с нами в любое время
                 </p>
-                <Button variant="primary" size="sm" className="w-full">
+                <Button variant="primary" size="sm" className="w-full shadow-md hover:shadow-lg transition-shadow">
                   Позвонить
                 </Button>
               </div>

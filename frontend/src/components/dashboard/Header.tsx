@@ -2,10 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUIStore } from '../../store/useUIStore';
+import { NotificationDropdown } from './NotificationDropdown';
 
 // Import icons
 import searchIcon from '../../assets/icons/search.svg';
-import notificationIcon from '../../assets/icons/notification.svg';
 import settingsIcon from '../../assets/icons/settings.svg';
 import arrowDownIcon from '../../assets/icons/arrow-down.svg';
 
@@ -53,10 +53,7 @@ export const Header: React.FC = () => {
         {/* Right: Icons & Profile */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <button className="relative p-2 rounded-sm hover:bg-bg-primary transition-smooth">
-            <img src={notificationIcon} alt="Notifications" className="w-6 h-6" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-secondary-100 rounded-full"></span>
-          </button>
+          <NotificationDropdown />
 
           {/* Settings */}
           {(user?.role === 'ADMIN' || user?.role === 'CLINIC') && (

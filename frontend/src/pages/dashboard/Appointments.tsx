@@ -9,6 +9,7 @@ import { CancelAppointmentModal } from '../../components/dashboard/CancelAppoint
 import { EditAmountModal } from '../../components/dashboard/EditAmountModal';
 import { useAppointments, useUpdateAppointmentStatus, useUpdateAppointment } from '../../hooks/useAppointments';
 import { userService } from '../../services/user.service';
+import { useAuthStore } from '../../store/useAuthStore';
 import { User, Appointment } from '../../types/api.types';
 import { formatAppointmentDateTime } from '../../utils/dateFormat';
 
@@ -20,8 +21,11 @@ import { formatAppointmentDateTime } from '../../utils/dateFormat';
  */
 export const AppointmentsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const user = useAuthStore(state => state.user);
+  const isDoctor = user?.role === 'DOCTOR';
   
   // Инициализация фильтров из URL параметров
+  // Для врачей фильтр по врачу устанавливается автоматически и не может быть изменен
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
   const [dateFilter, setDateFilter] = useState<string>(searchParams.get('date') || '');
   const [doctorFilter, setDoctorFilter] = useState<string>(searchParams.get('doctor') || '');
@@ -107,10 +111,11 @@ export const AppointmentsPage: React.FC = () => {
   // По умолчанию исключаем завершенные приёмы (completed) из раздела Appointments
   // Они должны отображаться только в разделе Patients
   // Но если выбран фильтр "Все статусы" (пустая строка), показываем все приёмы
+  // Для врачей автоматически устанавливаем doctorId = user.id (врачи видят только свои назначения)
   const { data, isLoading, isFetching, error } = useAppointments({
     status: statusFilter && statusFilter.trim() !== '' ? statusFilter : undefined,
     date: dateFilter || undefined,
-    doctorId: doctorFilter || undefined,
+    doctorId: isDoctor ? user?.id : (doctorFilter || undefined), // Для врачей автоматически фильтруем по их ID
     time: timeFilter || undefined,
     week: weekFilter || undefined,
     category: categoryFilter || undefined,
@@ -454,23 +459,26 @@ export const AppointmentsPage: React.FC = () => {
 
       {/* Filters */}
       <Card padding="md">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div>
-            <label className="block text-sm font-normal text-text-10 mb-2">Врач</label>
-            <select
-              value={doctorFilter}
-              onChange={e => setDoctorFilter(e.target.value)}
-              className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm focus:outline-none focus:border-main-100 transition-smooth"
-              disabled={isDoctorsLoading}
-            >
-              <option value="">Все врачи</option>
-              {doctors.map(doctor => (
-                <option key={doctor.id} value={doctor.id}>
-                  {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className={`grid grid-cols-1 md:grid-cols-3 ${isDoctor ? 'lg:grid-cols-5' : 'lg:grid-cols-6'} gap-4`}>
+          {/* Фильтр "Врач" скрыт для врачей, так как они видят только свои назначения */}
+          {!isDoctor && (
+            <div>
+              <label className="block text-sm font-normal text-text-10 mb-2">Врач</label>
+              <select
+                value={doctorFilter}
+                onChange={e => setDoctorFilter(e.target.value)}
+                className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm focus:outline-none focus:border-main-100 transition-smooth"
+                disabled={isDoctorsLoading}
+              >
+                <option value="">Все врачи</option>
+                {doctors.map(doctor => (
+                  <option key={doctor.id} value={doctor.id}>
+                    {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-normal text-text-10 mb-2">Статус</label>
             <select
@@ -531,13 +539,13 @@ export const AppointmentsPage: React.FC = () => {
             />
           </div>
         </div>
-        {(doctorFilter || statusFilter || dateFilter || timeFilter || weekFilter || categoryFilter) && (
+        {(!isDoctor && doctorFilter || statusFilter || dateFilter || timeFilter || weekFilter || categoryFilter) && (
           <div className="mt-4 pt-4 border-t border-stroke">
             <Button
               variant="secondary"
               size="sm"
               onClick={() => {
-                setDoctorFilter('');
+                if (!isDoctor) setDoctorFilter('');
                 setStatusFilter('');
                 setDateFilter('');
                 setTimeFilter('');

@@ -74,7 +74,15 @@ export async function findClinicBySlug(slug) {
       city: true,
       about: true,
       logo: true,
+      heroImage: true,
       workingHours: true,
+      certificates: {
+        // Показываем все сертификаты (для MVP)
+        // В будущем можно добавить верификацию администратором
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
     },
   });
 

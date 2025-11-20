@@ -63,16 +63,23 @@ export async function findAll(clinicId, options = {}) {
 
 /**
  * Получить пользователя по ID
- * @param {string} clinicId - ID клиники
+ * @param {string|null} clinicId - ID клиники (null для ADMIN)
  * @param {string} userId - ID пользователя
  * @returns {Promise<object>} User
  */
 export async function findById(clinicId, userId) {
+  const where = {
+    id: userId,
+  };
+
+  // Если clinicId указан, проверяем принадлежность к клинике
+  // Если clinicId null (для ADMIN), не проверяем
+  if (clinicId) {
+    where.clinicId = clinicId;
+  }
+
   const user = await prisma.user.findFirst({
-    where: {
-      id: userId,
-      clinicId, // ОБЯЗАТЕЛЬНО!
-    },
+    where,
     select: {
       id: true,
       clinicId: true,
@@ -83,6 +90,10 @@ export async function findById(clinicId, userId) {
       specialization: true,
       phone: true,
       avatar: true,
+      experience: true,
+      licenseNumber: true,
+      dateOfBirth: true,
+      gender: true,
       createdAt: true,
       updatedAt: true,
       // НЕ возвращаем passwordHash!
@@ -146,13 +157,15 @@ export async function create(clinicId, data) {
 
 /**
  * Обновить пользователя
- * @param {string} clinicId - ID клиники
+ * @param {string|null} clinicId - ID клиники (null для ADMIN)
  * @param {string} userId - ID пользователя
  * @param {object} data - Данные для обновления
  * @returns {Promise<object>} Обновленный пользователь
  */
 export async function update(clinicId, userId, data) {
-  // Проверяем что пользователь существует и принадлежит клинике
+  // Проверяем что пользователь существует
+  // Если clinicId указан, проверяем принадлежность к клинике
+  // Если clinicId null (для ADMIN), просто проверяем существование
   await findById(clinicId, userId);
 
   // Если обновляется email, проверяем уникальность
@@ -185,6 +198,11 @@ export async function update(clinicId, userId, data) {
       status: true,
       specialization: true,
       phone: true,
+      avatar: true,
+      experience: true,
+      licenseNumber: true,
+      dateOfBirth: true,
+      gender: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -442,5 +460,78 @@ export async function createDoctorByClinic(clinicId, data) {
 
   console.log('✅ [USER SERVICE] Врач успешно создан:', doctor.id);
   return doctor;
+}
+
+/**
+ * Обновить профиль врача (врач обновляет свои данные)
+ * @param {string} userId - ID врача (из токена)
+ * @param {object} data - Данные для обновления
+ * @returns {Promise<object>} Обновленный врач
+ */
+export async function updateDoctorProfile(userId, data) {
+  console.log('🔵 [USER SERVICE] Обновление профиля врача:', userId);
+
+  // Проверяем что пользователь существует и является врачом
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    console.log('🔴 [USER SERVICE] Врач не найден');
+    throw new Error('Doctor not found');
+  }
+
+  if (user.role !== 'DOCTOR') {
+    console.log('🔴 [USER SERVICE] Пользователь не является врачом');
+    throw new Error('User is not a doctor');
+  }
+
+  // Если обновляется email, проверяем уникальность
+  if (data.email) {
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existing && existing.id !== userId) {
+      console.log('🔴 [USER SERVICE] Email уже используется:', data.email);
+      throw new Error('User with this email already exists');
+    }
+  }
+
+  // Обновляем данные врача
+  const updatedDoctor = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(data.name && { name: data.name }),
+      ...(data.email && { email: data.email }),
+      ...(data.phone !== undefined && { phone: data.phone || null }),
+      ...(data.specialization !== undefined && { specialization: data.specialization || null }),
+      ...(data.licenseNumber !== undefined && { licenseNumber: data.licenseNumber || null }),
+      ...(data.experience !== undefined && { experience: data.experience || null }),
+      ...(data.dateOfBirth !== undefined && { dateOfBirth: data.dateOfBirth || null }),
+      ...(data.gender !== undefined && { gender: data.gender || null }),
+      ...(data.avatar !== undefined && { avatar: data.avatar || null }),
+    },
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      specialization: true,
+      licenseNumber: true,
+      experience: true,
+      phone: true,
+      avatar: true,
+      dateOfBirth: true,
+      gender: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  console.log('✅ [USER SERVICE] Профиль врача успешно обновлен:', updatedDoctor.id);
+  return updatedDoctor;
 }
 

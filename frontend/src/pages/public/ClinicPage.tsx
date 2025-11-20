@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button, Card, Input, Modal, Spinner, BackButton, Calendar } from '../../components/common';
+import { CertificateGallery } from '../../components/public/CertificateGallery';
 import { useClinic, useClinicDoctors, useCreatePublicAppointment } from '../../hooks/usePublic';
 
 // Import icons
@@ -154,6 +155,17 @@ export const ClinicPage: React.FC = () => {
           <BackButton fallback="/clinics" />
         </div>
 
+        {/* Hero Image Section */}
+        {clinic.heroImage && (
+          <div className="mb-8 rounded-lg overflow-hidden shadow-lg">
+            <img
+              src={clinic.heroImage}
+              alt={clinic.name}
+              className="w-full h-[400px] object-cover"
+            />
+          </div>
+        )}
+
         {/* Clinic Info Card */}
         <Card padding="lg" className="mb-8">
           <h1 className="text-4xl font-semibold text-text-100 mb-6">{clinic.name}</h1>
@@ -215,6 +227,19 @@ export const ClinicPage: React.FC = () => {
               <p className="text-sm text-text-10 leading-relaxed">{clinic.about}</p>
             </div>
           )}
+
+          {/* Certificates - Only images visible to patients */}
+          {clinic.certificates && clinic.certificates.length > 0 && (
+            <div className="mt-8 pt-8 border-t border-stroke">
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-text-50 mb-2">Сертификаты и лицензии</h3>
+                <p className="text-sm text-text-10">
+                  Нажмите на изображение, чтобы просмотреть в полном размере
+                </p>
+              </div>
+              <CertificateGallery certificates={clinic.certificates} />
+            </div>
+          )}
         </Card>
 
         {/* Doctors Section */}
@@ -231,8 +256,16 @@ export const ClinicPage: React.FC = () => {
               {doctors.map(doctor => (
                 <Card key={doctor.id} padding="md">
                   <div className="text-center space-y-4">
-                    <div className="bg-main-10 w-20 h-20 rounded-lg flex items-center justify-center mx-auto">
-                      <img src={doctorIcon} alt="Doctor" className="w-10 h-10" />
+                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto border-2 border-stroke bg-main-10 flex items-center justify-center">
+                      {doctor.avatar ? (
+                        <img 
+                          src={doctor.avatar} 
+                          alt={doctor.name} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <img src={doctorIcon} alt="Doctor" className="w-10 h-10" />
+                      )}
                     </div>
                     <div>
                       <h3 className="text-base font-medium text-text-100">{doctor.name}</h3>

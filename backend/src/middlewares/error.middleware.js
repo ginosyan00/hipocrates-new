@@ -22,7 +22,11 @@ export function errorHandler(err, req, res, next) {
   let message = err.message || 'Internal server error';
 
   // Специальные типы ошибок
-  if (err.message.includes('not found')) {
+  if (err.statusCode === 413 || err.message.includes('too large') || err.message.includes('Payload Too Large')) {
+    statusCode = 413;
+    errorCode = 'PAYLOAD_TOO_LARGE';
+    message = 'Файл слишком большой. Максимальный размер: 10 MB. Пожалуйста, используйте файл меньшего размера.';
+  } else if (err.message.includes('not found')) {
     statusCode = 404;
     errorCode = 'NOT_FOUND';
   } else if (err.message.includes('already exists')) {

@@ -60,6 +60,11 @@ export const updateUserSchema = Joi.object({
     .allow('')
     .optional(),
   status: Joi.string().valid('ACTIVE', 'SUSPENDED').optional(),
+  avatar: Joi.string().allow('').optional(), // Base64 строка для изображения
+  experience: Joi.number().integer().min(0).max(70).optional(),
+  licenseNumber: Joi.string().min(2).max(50).optional(),
+  dateOfBirth: Joi.date().max('now').optional(),
+  gender: Joi.string().valid('male', 'female', 'other').optional(),
 }).min(1); // Хотя бы одно поле обязательно
 
 /**
@@ -111,4 +116,31 @@ export const createDoctorByClinicSchema = Joi.object({
   }),
   gender: Joi.string().valid('male', 'female', 'other').optional(),
 });
+
+/**
+ * Обновление данных врача (врач обновляет свои данные)
+ */
+export const updateDoctorProfileSchema = Joi.object({
+  name: Joi.string().min(2).max(100).optional(),
+  email: Joi.string().email().optional(),
+  phone: Joi.string()
+    .pattern(/^\+?[\d\s\-\(\)]+$/)
+    .allow('')
+    .optional()
+    .messages({
+      'string.pattern.base': 'Phone number format is invalid',
+    }),
+  specialization: Joi.string().min(2).max(100).optional(),
+  licenseNumber: Joi.string().min(2).max(50).optional(),
+  experience: Joi.number().integer().min(0).max(70).optional().messages({
+    'number.base': 'Experience must be a number',
+    'number.min': 'Experience cannot be negative',
+    'number.max': 'Experience cannot exceed 70 years',
+  }),
+  dateOfBirth: Joi.date().max('now').optional().messages({
+    'date.max': 'Date of birth cannot be in the future',
+  }),
+  gender: Joi.string().valid('male', 'female', 'other').optional(),
+  avatar: Joi.string().allow('').optional(), // Base64 строка для изображения
+}).min(1); // Хотя бы одно поле обязательно
 

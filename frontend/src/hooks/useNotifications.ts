@@ -8,6 +8,7 @@ import { Notification } from '../types/api.types';
 
 export function useNotifications(params?: {
   patientId?: string;
+  userId?: string;
   isRead?: boolean;
   type?: string;
   page?: number;
@@ -21,20 +22,20 @@ export function useNotifications(params?: {
   });
 }
 
-export function useUnreadNotificationsCount(patientId?: string) {
+export function useUnreadNotificationsCount(patientId?: string, userId?: string) {
   return useQuery({
-    queryKey: ['notifications', 'unread-count', patientId],
-    queryFn: () => notificationService.getUnreadCount(patientId),
+    queryKey: ['notifications', 'unread-count', patientId, userId],
+    queryFn: () => notificationService.getUnreadCount(patientId, userId),
     staleTime: 10000, // 10 секунд
     refetchOnWindowFocus: true,
     refetchInterval: 30000, // Обновлять каждые 30 секунд
   });
 }
 
-export function useNotification(id: string, patientId?: string) {
+export function useNotification(id: string, patientId?: string, userId?: string) {
   return useQuery({
-    queryKey: ['notifications', id, patientId],
-    queryFn: () => notificationService.getById(id, patientId),
+    queryKey: ['notifications', id, patientId, userId],
+    queryFn: () => notificationService.getById(id, patientId, userId),
     enabled: !!id,
   });
 }
@@ -43,8 +44,8 @@ export function useMarkNotificationAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, patientId }: { id: string; patientId?: string }) =>
-      notificationService.markAsRead(id, patientId),
+    mutationFn: ({ id, patientId, userId }: { id: string; patientId?: string; userId?: string }) =>
+      notificationService.markAsRead(id, patientId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
@@ -55,7 +56,7 @@ export function useMarkAllNotificationsAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (patientId?: string) => notificationService.markAllAsRead(patientId),
+    mutationFn: (patientId?: string, userId?: string) => notificationService.markAllAsRead(patientId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
@@ -66,8 +67,8 @@ export function useDeleteNotification() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, patientId }: { id: string; patientId?: string }) =>
-      notificationService.delete(id, patientId),
+    mutationFn: ({ id, patientId, userId }: { id: string; patientId?: string; userId?: string }) =>
+      notificationService.delete(id, patientId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },

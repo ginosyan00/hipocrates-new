@@ -1,44 +1,18 @@
 import React, { useState } from 'react';
 import { NewDashboardLayout } from '../../components/dashboard/NewDashboardLayout';
-import { ProfileSection } from '../../components/dashboard/ProfileSection';
 import { PasswordSection } from '../../components/dashboard/PasswordSection';
 import { NotificationsSection } from '../../components/dashboard/NotificationsSection';
-import { LogoUpload } from '../../components/dashboard/LogoUpload';
-import { Card } from '../../components/common/Card';
-import { useClinic, useUpdateClinic, useUploadLogo, useClinicSettings, useUpdateClinicSettings, useUpdateClinicPassword } from '../../hooks/useClinic';
+import { useClinicSettings, useUpdateClinicSettings, useUpdateClinicPassword } from '../../hooks/useClinic';
 import { toast } from 'react-hot-toast';
 
 /**
  * Settings Page
- * Страница настроек клиники
+ * Страница настроек клиники (системные настройки, пароль, уведомления)
  */
 export const SettingsPage: React.FC = () => {
-  const { data: clinic, isLoading: clinicLoading } = useClinic();
   const { data: settings, isLoading: settingsLoading } = useClinicSettings();
-  const updateClinicMutation = useUpdateClinic();
-  const uploadLogoMutation = useUploadLogo();
   const updateSettingsMutation = useUpdateClinicSettings();
   const updatePasswordMutation = useUpdateClinicPassword();
-
-  const handleUpdateClinic = async (data: any) => {
-    try {
-      await updateClinicMutation.mutateAsync(data);
-      toast.success('Профиль успешно обновлен');
-    } catch (error: any) {
-      toast.error(error.message || 'Ошибка при обновлении профиля');
-      throw error;
-    }
-  };
-
-  const handleUploadLogo = async (logo: string) => {
-    try {
-      await uploadLogoMutation.mutateAsync(logo);
-      toast.success('Логотип успешно загружен');
-    } catch (error: any) {
-      toast.error(error.message || 'Ошибка при загрузке логотипа');
-      throw error;
-    }
-  };
 
   const handleUpdateSettings = async (data: any) => {
     try {
@@ -60,7 +34,7 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  if (clinicLoading || settingsLoading) {
+  if (settingsLoading) {
     return (
       <NewDashboardLayout>
         <div className="flex items-center justify-center h-64">
@@ -75,24 +49,8 @@ export const SettingsPage: React.FC = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-text-100">Настройки</h1>
-          <p className="text-sm text-text-10 mt-1">Управление профилем клиники и настройками</p>
+          <p className="text-sm text-text-10 mt-1">Системные настройки, пароль и уведомления</p>
         </div>
-
-        {/* Логотип */}
-        <Card title="Логотип клиники" padding="lg">
-          <LogoUpload
-            currentLogo={clinic?.logo || null}
-            onUpload={handleUploadLogo}
-            isLoading={uploadLogoMutation.isPending}
-          />
-        </Card>
-
-        {/* Профиль */}
-        <ProfileSection
-          clinic={clinic}
-          onUpdate={handleUpdateClinic}
-          isLoading={updateClinicMutation.isPending}
-        />
 
         {/* Пароль */}
         <PasswordSection

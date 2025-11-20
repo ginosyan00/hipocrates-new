@@ -390,6 +390,33 @@ export async function create(clinicId, data) {
     },
   });
 
+  // Создаем уведомление для врача о новой записи
+  try {
+    const { createForDoctor } = await import('./notification.service.js');
+    const appointmentDate = new Date(appointment.appointmentDate);
+    const formattedDate = appointmentDate.toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const formattedTime = appointmentDate.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    await createForDoctor(clinicId, data.doctorId, {
+      type: 'new_appointment',
+      title: 'Новая запись на приём',
+      message: `Пациент ${patient.name} записался на приём ${formattedDate} в ${formattedTime}.${appointment.reason ? ` Причина: ${appointment.reason}` : ''}`,
+      appointmentId: appointment.id,
+    });
+
+    console.log(`✅ [APPOINTMENT] Создано уведомление для врача ${data.doctorId} о новой записи`);
+  } catch (error) {
+    // Логируем ошибку, но не прерываем создание appointment
+    console.error(`⚠️ [APPOINTMENT] Ошибка при создании уведомления для врача:`, error);
+  }
+
   return appointment;
 }
 

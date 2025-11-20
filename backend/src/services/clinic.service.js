@@ -135,6 +135,30 @@ export async function updateClinicLogo(clinicId, logoUrl) {
 }
 
 /**
+ * Обновить главное изображение клиники
+ * @param {string} clinicId - ID клиники
+ * @param {string} heroImageUrl - URL главного изображения (base64 или URL)
+ * @returns {Promise<object>} Обновленная клиника
+ */
+export async function updateClinicHeroImage(clinicId, heroImageUrl) {
+  console.log('🔵 [CLINIC SERVICE] Обновление главного изображения клиники:', clinicId);
+
+  const clinic = await prisma.clinic.update({
+    where: { id: clinicId },
+    data: { heroImage: heroImageUrl },
+    select: {
+      id: true,
+      name: true,
+      heroImage: true,
+      updatedAt: true,
+    },
+  });
+
+  console.log('✅ [CLINIC SERVICE] Главное изображение обновлено');
+  return clinic;
+}
+
+/**
  * Получить настройки клиники (создает дефолтные если не существуют)
  * @param {string} clinicId - ID клиники
  * @returns {Promise<object>} Настройки клиники

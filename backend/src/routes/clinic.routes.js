@@ -6,6 +6,7 @@ import { validate } from '../middlewares/validation.middleware.js';
 import {
   updateClinicSchema,
   uploadLogoSchema,
+  uploadHeroImageSchema,
   updateSettingsSchema,
   updatePasswordSchema,
 } from '../validators/clinic.validator.js';
@@ -36,6 +37,13 @@ router.put('/me', validate(updateClinicSchema), clinicController.updateClinic);
  * Доступ: ADMIN с clinicId
  */
 router.post('/logo', validate(uploadLogoSchema), clinicController.uploadLogo);
+
+/**
+ * POST /api/v1/clinic/hero-image
+ * Загрузить главное изображение клиники
+ * Доступ: ADMIN с clinicId
+ */
+router.post('/hero-image', validate(uploadHeroImageSchema), clinicController.uploadHeroImage);
 
 /**
  * GET /api/v1/clinic/settings

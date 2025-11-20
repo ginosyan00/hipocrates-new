@@ -94,11 +94,11 @@ export const canAccessPath = (userRole: UserRole | string, path: string): boolea
 
   // Маппинг ролей на разрешенные пути
   const rolePathMap: Record<string, string[]> = {
-    [UserRole.PATIENT]: ['/dashboard/patient'],
+    [UserRole.PATIENT]: ['/dashboard/patient', '/dashboard/patient/appointments', '/dashboard/patient/clinics', '/dashboard/patient/analytics'],
     [UserRole.DOCTOR]: ['/dashboard/doctor'],
     [UserRole.PARTNER]: ['/dashboard/partner'],
-    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
-    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
+    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/web', '/dashboard/settings'],
+    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/web', '/dashboard/settings'],
   };
 
   const allowedPaths = rolePathMap[userRole] || [];
@@ -121,11 +121,11 @@ export const canAccessPath = (userRole: UserRole | string, path: string): boolea
  */
 export const getAllowedPaths = (userRole: UserRole | string): string[] => {
   const rolePathMap: Record<string, string[]> = {
-    [UserRole.PATIENT]: ['/dashboard/patient'],
+    [UserRole.PATIENT]: ['/dashboard/patient', '/dashboard/patient/appointments', '/dashboard/patient/clinics', '/dashboard/patient/analytics'],
     [UserRole.DOCTOR]: ['/dashboard/doctor'],
     [UserRole.PARTNER]: ['/dashboard/partner'],
-    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
-    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/settings'],
+    [UserRole.ADMIN]: ['/dashboard', '/dashboard/admin', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/web', '/dashboard/settings'],
+    CLINIC: ['/dashboard', '/dashboard/patients', '/dashboard/appointments', '/dashboard/staff', '/dashboard/analytics', '/dashboard/web', '/dashboard/settings'],
   };
 
   return rolePathMap[userRole] || ['/dashboard'];

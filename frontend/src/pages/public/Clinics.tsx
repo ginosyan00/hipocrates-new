@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card, Spinner, BackButton } from '../../components/common';
+import { Button, Card, Spinner } from '../../components/common';
 import { useClinics, useCities } from '../../hooks/usePublic';
 import { Clinic } from '../../types/api.types';
 
@@ -43,11 +43,6 @@ export const ClinicsPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-8 py-12">
-        {/* Back Button */}
-        <div className="mb-6">
-          <BackButton />
-        </div>
-
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-semibold text-text-100 mb-3">Стоматологические клиники</h1>
@@ -143,7 +138,7 @@ export const ClinicsPage: React.FC = () => {
                           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
-                          <span className="truncate">{clinic.email}</span>
+                          <span className="truncate">{clinic.email || ''}</span>
                         </div>
                       </div>
 

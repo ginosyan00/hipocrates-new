@@ -46,6 +46,21 @@ export function useUploadLogo() {
 }
 
 /**
+ * Загрузить главное изображение клиники
+ */
+export function useUploadHeroImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (heroImage: string) => clinicService.uploadHeroImage(heroImage),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clinic'] });
+      queryClient.invalidateQueries({ queryKey: ['public', 'clinic'] });
+    },
+  });
+}
+
+/**
  * Получить настройки клиники
  */
 export function useClinicSettings() {

@@ -8,17 +8,18 @@ import { prisma } from '../config/database.js';
  */
 
 /**
- * Получить patientId и clinicId для пользователя
+ * Получить patientId, userId и clinicId для пользователя
  * Для пациентов - находим по email/phone, затем получаем clinicId из найденного пациента
- * Для врачей/админов - используем patientId из query параметров и clinicId из токена
- * @returns {Promise<{patientId: string|null, clinicId: string|null}>}
+ * Для врачей - используем userId из токена и clinicId из токена
+ * Для админов - используем patientId или userId из query параметров и clinicId из токена
+ * @returns {Promise<{patientId: string|null, userId: string|null, clinicId: string|null}>}
  */
-async function getPatientIdAndClinicId(req) {
+async function getPatientIdUserIdAndClinicId(req) {
   try {
     // Проверяем наличие req.user
     if (!req.user) {
       console.error('🔴 [NOTIFICATION] req.user не определен');
-      return { patientId: null, clinicId: null };
+      return { patientId: null, userId: null, clinicId: null };
     }
 
     if (req.user.role === 'PATIENT') {
@@ -30,7 +31,7 @@ async function getPatientIdAndClinicId(req) {
 
       if (!user) {
         console.warn('🔴 [NOTIFICATION] Пользователь не найден:', req.user.userId);
-        return { patientId: null, clinicId: null };
+        return { patientId: null, userId: null, clinicId: null };
       }
 
       // Ищем пациента по email или phone (без фильтра по clinicId, так как его может не быть в токене)
@@ -52,26 +53,35 @@ async function getPatientIdAndClinicId(req) {
           email: user.email, 
           phone: user.phone 
         });
-        return { patientId: patient.id, clinicId: patient.clinicId };
+        return { patientId: patient.id, userId: null, clinicId: patient.clinicId };
       }
 
       // Если пациент не найден, но есть clinicId в токене, используем его
       if (req.user.clinicId) {
         console.log('⚠️ [NOTIFICATION] Пациент не найден, используем clinicId из токена:', req.user.clinicId);
-        return { patientId: req.query.patientId || null, clinicId: req.user.clinicId };
+        return { patientId: req.query.patientId || null, userId: null, clinicId: req.user.clinicId };
       }
 
-      return { patientId: null, clinicId: null };
+      return { patientId: null, userId: null, clinicId: null };
     }
 
-    // Для врачей/админов - используем patientId из query параметров и clinicId из токена
+    if (req.user.role === 'DOCTOR') {
+      // Для врачей - используем userId из токена и clinicId из токена
+      const clinicId = req.user.clinicId || null;
+      const userId = req.user.userId || null;
+      console.log('🔵 [NOTIFICATION] UserId и ClinicId для DOCTOR:', { userId, clinicId });
+      return { patientId: null, userId, clinicId };
+    }
+
+    // Для админов - используем patientId или userId из query параметров и clinicId из токена
     const patientId = req.query.patientId || null;
+    const userId = req.query.userId || null;
     const clinicId = req.user.clinicId || null;
-    console.log('🔵 [NOTIFICATION] PatientId и ClinicId для', req.user.role, ':', { patientId, clinicId });
-    return { patientId, clinicId };
+    console.log('🔵 [NOTIFICATION] PatientId, UserId и ClinicId для', req.user.role, ':', { patientId, userId, clinicId });
+    return { patientId, userId, clinicId };
   } catch (error) {
-    console.error('🔴 [NOTIFICATION] Ошибка в getPatientIdAndClinicId:', error);
-    return { patientId: null, clinicId: null };
+    console.error('🔴 [NOTIFICATION] Ошибка в getPatientIdUserIdAndClinicId:', error);
+    return { patientId: null, userId: null, clinicId: null };
   }
 }
 
@@ -99,28 +109,28 @@ export async function getAll(req, res, next) {
 
     const { isRead, type, page, limit } = req.query;
     
-    // Получаем patientId и clinicId
-    const { patientId, clinicId } = await getPatientIdAndClinicId(req);
+    // Получаем patientId, userId и clinicId
+    const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
     if (!clinicId) {
       console.warn('🔴 [NOTIFICATION] ClinicId не найден');
       return res.status(400).json({
         success: false,
-        message: 'Clinic ID is required. For PATIENT role, patient must be registered in a clinic.',
+        message: 'Clinic ID is required.',
       });
     }
 
-    if (!patientId) {
-      console.warn('🔴 [NOTIFICATION] PatientId не найден');
+    if (!patientId && !userId) {
+      console.warn('🔴 [NOTIFICATION] PatientId и UserId не найдены');
       return res.status(400).json({
         success: false,
-        message: 'Patient ID is required. For PATIENT role, patient must be registered in the clinic.',
+        message: 'Patient ID or User ID is required.',
       });
     }
 
-    console.log('🔵 [NOTIFICATION] Запрос уведомлений:', { clinicId, patientId, isRead, type, page, limit });
+    console.log('🔵 [NOTIFICATION] Запрос уведомлений:', { clinicId, patientId, userId, isRead, type, page, limit });
 
-    const result = await notificationService.findAll(clinicId, patientId, {
+    const result = await notificationService.findAll(clinicId, patientId, userId, {
       isRead,
       type,
       page: page ? parseInt(page) : 1,
@@ -156,27 +166,27 @@ export async function getUnreadCount(req, res, next) {
       });
     }
 
-    // Получаем patientId и clinicId
-    const { patientId, clinicId } = await getPatientIdAndClinicId(req);
+    // Получаем patientId, userId и clinicId
+    const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
     if (!clinicId) {
       console.warn('🔴 [NOTIFICATION] ClinicId не найден');
       return res.status(400).json({
         success: false,
-        message: 'Clinic ID is required. For PATIENT role, patient must be registered in a clinic.',
+        message: 'Clinic ID is required.',
       });
     }
 
-    if (!patientId) {
-      console.warn('🔴 [NOTIFICATION] PatientId не найден');
+    if (!patientId && !userId) {
+      console.warn('🔴 [NOTIFICATION] PatientId и UserId не найдены');
       return res.status(400).json({
         success: false,
-        message: 'Patient ID is required. For PATIENT role, patient must be registered in the clinic.',
+        message: 'Patient ID or User ID is required.',
       });
     }
 
-    console.log('🔵 [NOTIFICATION] Запрос количества непрочитанных:', { clinicId, patientId });
-    const count = await notificationService.getUnreadCount(clinicId, patientId);
+    console.log('🔵 [NOTIFICATION] Запрос количества непрочитанных:', { clinicId, patientId, userId });
+    const count = await notificationService.getUnreadCount(clinicId, patientId, userId);
     console.log('✅ [NOTIFICATION] Непрочитанных уведомлений:', count);
 
     successResponse(res, { count }, 200);
@@ -200,16 +210,16 @@ export async function getById(req, res, next) {
     }
 
     const { id } = req.params;
-    const { patientId, clinicId } = await getPatientIdAndClinicId(req);
+    const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
-    if (!clinicId || !patientId) {
+    if (!clinicId || (!patientId && !userId)) {
       return res.status(400).json({
         success: false,
-        message: 'Clinic ID and Patient ID are required.',
+        message: 'Clinic ID and (Patient ID or User ID) are required.',
       });
     }
 
-    const notification = await notificationService.findById(clinicId, patientId, id);
+    const notification = await notificationService.findById(clinicId, patientId, userId, id);
 
     successResponse(res, notification, 200);
   } catch (error) {
@@ -231,16 +241,16 @@ export async function markAsRead(req, res, next) {
     }
 
     const { id } = req.params;
-    const { patientId, clinicId } = await getPatientIdAndClinicId(req);
+    const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
-    if (!clinicId || !patientId) {
+    if (!clinicId || (!patientId && !userId)) {
       return res.status(400).json({
         success: false,
-        message: 'Clinic ID and Patient ID are required.',
+        message: 'Clinic ID and (Patient ID or User ID) are required.',
       });
     }
 
-    const notification = await notificationService.markAsRead(clinicId, patientId, id);
+    const notification = await notificationService.markAsRead(clinicId, patientId, userId, id);
 
     successResponse(res, notification, 200);
   } catch (error) {
@@ -261,16 +271,16 @@ export async function markAllAsRead(req, res, next) {
       });
     }
 
-    const { patientId, clinicId } = await getPatientIdAndClinicId(req);
+    const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
-    if (!clinicId || !patientId) {
+    if (!clinicId || (!patientId && !userId)) {
       return res.status(400).json({
         success: false,
-        message: 'Clinic ID and Patient ID are required.',
+        message: 'Clinic ID and (Patient ID or User ID) are required.',
       });
     }
 
-    const result = await notificationService.markAllAsRead(clinicId, patientId);
+    const result = await notificationService.markAllAsRead(clinicId, patientId, userId);
 
     successResponse(res, result, 200);
   } catch (error) {
@@ -292,16 +302,16 @@ export async function remove(req, res, next) {
     }
 
     const { id } = req.params;
-    const { patientId, clinicId } = await getPatientIdAndClinicId(req);
+    const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
-    if (!clinicId || !patientId) {
+    if (!clinicId || (!patientId && !userId)) {
       return res.status(400).json({
         success: false,
-        message: 'Clinic ID and Patient ID are required.',
+        message: 'Clinic ID and (Patient ID or User ID) are required.',
       });
     }
 
-    await notificationService.remove(clinicId, patientId, id);
+    await notificationService.remove(clinicId, patientId, userId, id);
 
     successResponse(res, { message: 'Notification deleted successfully' }, 200);
   } catch (error) {

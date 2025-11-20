@@ -8,16 +8,17 @@ import { ApiResponse, Notification, PaginatedResponse } from '../types/api.types
 
 export const notificationService = {
   /**
-   * Получить все уведомления пациента
+   * Получить все уведомления пациента или врача
    */
   async getAll(params?: {
     patientId?: string;
+    userId?: string;
     isRead?: boolean;
     type?: string;
     page?: number;
     limit?: number;
-  }): Promise<PaginatedResponse<Notification>> {
-    const { data } = await api.get<ApiResponse<PaginatedResponse<Notification>>>(
+  }): Promise<{ notifications: Notification[]; meta: any }> {
+    const { data } = await api.get<ApiResponse<{ notifications: Notification[]; meta: any }>>(
       '/notifications',
       { params }
     );
@@ -27,8 +28,10 @@ export const notificationService = {
   /**
    * Получить количество непрочитанных уведомлений
    */
-  async getUnreadCount(patientId?: string): Promise<number> {
-    const params = patientId ? { patientId } : {};
+  async getUnreadCount(patientId?: string, userId?: string): Promise<number> {
+    const params: any = {};
+    if (patientId) params.patientId = patientId;
+    if (userId) params.userId = userId;
     const { data } = await api.get<ApiResponse<{ count: number }>>(
       '/notifications/unread-count',
       { params }
@@ -39,8 +42,10 @@ export const notificationService = {
   /**
    * Получить уведомление по ID
    */
-  async getById(id: string, patientId?: string): Promise<Notification> {
-    const params = patientId ? { patientId } : {};
+  async getById(id: string, patientId?: string, userId?: string): Promise<Notification> {
+    const params: any = {};
+    if (patientId) params.patientId = patientId;
+    if (userId) params.userId = userId;
     const { data } = await api.get<ApiResponse<Notification>>(`/notifications/${id}`, { params });
     return data.data;
   },
@@ -48,8 +53,10 @@ export const notificationService = {
   /**
    * Отметить уведомление как прочитанное
    */
-  async markAsRead(id: string, patientId?: string): Promise<Notification> {
-    const params = patientId ? { patientId } : {};
+  async markAsRead(id: string, patientId?: string, userId?: string): Promise<Notification> {
+    const params: any = {};
+    if (patientId) params.patientId = patientId;
+    if (userId) params.userId = userId;
     const { data } = await api.patch<ApiResponse<Notification>>(
       `/notifications/${id}/read`,
       {},
@@ -61,8 +68,10 @@ export const notificationService = {
   /**
    * Отметить все уведомления как прочитанные
    */
-  async markAllAsRead(patientId?: string): Promise<{ count: number }> {
-    const params = patientId ? { patientId } : {};
+  async markAllAsRead(patientId?: string, userId?: string): Promise<{ count: number }> {
+    const params: any = {};
+    if (patientId) params.patientId = patientId;
+    if (userId) params.userId = userId;
     const { data } = await api.patch<ApiResponse<{ count: number }>>(
       '/notifications/read-all',
       {},
@@ -74,8 +83,10 @@ export const notificationService = {
   /**
    * Удалить уведомление
    */
-  async delete(id: string, patientId?: string): Promise<void> {
-    const params = patientId ? { patientId } : {};
+  async delete(id: string, patientId?: string, userId?: string): Promise<void> {
+    const params: any = {};
+    if (patientId) params.patientId = patientId;
+    if (userId) params.userId = userId;
     await api.delete(`/notifications/${id}`, { params });
   },
 };

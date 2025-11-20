@@ -71,7 +71,9 @@ export interface Clinic {
   city: string;
   about?: string;
   logo?: string;
+  heroImage?: string;
   workingHours?: WorkingHours;
+  certificates?: Certificate[];
   createdAt: Date;
   updatedAt: Date;
   settings?: ClinicSettings;
@@ -241,7 +243,8 @@ export interface PatientVisit {
 export interface Notification {
   id: string;
   clinicId: string;
-  patientId: string;
+  patientId?: string;
+  userId?: string;
   type: NotificationType;
   title: string;
   message: string;
@@ -249,6 +252,16 @@ export interface Notification {
   appointmentId?: string;
   createdAt: Date | string;
   updatedAt: Date | string;
+  patient?: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+  user?: {
+    id: string;
+    name: string;
+    specialization?: string;
+  };
 }
 
 export enum NotificationType {
@@ -256,7 +269,24 @@ export enum NotificationType {
   Reschedule = 'reschedule',
   Reminder = 'reminder',
   Confirmation = 'confirmation',
+  NewAppointment = 'new_appointment',
   Other = 'other',
+}
+
+export interface Certificate {
+  id: string;
+  clinicId: string;
+  title: string;
+  certificateNumber?: string;
+  issuedBy?: string;
+  issueDate?: Date | string;
+  expiryDate?: Date | string;
+  fileUrl: string;
+  fileType: 'pdf' | 'jpg' | 'jpeg' | 'png';
+  fileSize?: number;
+  isVerified: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 

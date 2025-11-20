@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Button, Card, Input, Modal, Spinner, BackButton } from '../../components/common';
-import { useClinicDoctor, useCreatePublicAppointment } from '../../hooks/usePublic';
+import { useParams, Link } from 'react-router-dom';
+import { Button, Card, Spinner, BackButton, Input, Modal } from '../../components/common';
+import { AvatarUpload } from '../../components/dashboard/AvatarUpload';
+import { useClinicDoctor } from '../../hooks/usePublic';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useUpdateUser } from '../../hooks/useUsers';
+import { toast } from 'react-hot-toast';
 
 // Import icons
 import brainLogo from '../../assets/icons/brain-logo.svg';
@@ -13,64 +17,29 @@ import doctorIcon from '../../assets/icons/doctor.svg';
  */
 export const DoctorPage: React.FC = () => {
   const { slug, doctorId } = useParams<{ slug: string; doctorId: string }>();
-  const navigate = useNavigate();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const currentUser = useAuthStore(state => state.user);
+  const updateUserMutation = useUpdateUser();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
-  const { data: doctor, isLoading: doctorLoading } = useClinicDoctor(slug!, doctorId!);
-  const createMutation = useCreatePublicAppointment();
+  const { data: doctor, isLoading: doctorLoading, refetch } = useClinicDoctor(slug!, doctorId!);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    patientName: '',
-    patientPhone: '',
-    patientEmail: '',
-    appointmentDate: '',
-    appointmentTime: '',
-    reason: '',
-  });
+  // Проверка: является ли текущий пользователь владельцем клиники этого врача
+  const isClinicOwner = doctor && currentUser?.role === 'CLINIC' && currentUser?.clinicId === doctor.clinic?.id;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleAvatarUpload = async (avatar: string) => {
+    if (!doctor) return;
     try {
-      const appointmentDateTimeString = `${formData.appointmentDate}T${formData.appointmentTime}:00`;
-      const appointmentDateTime = new Date(appointmentDateTimeString);
-      const appointmentDateTimeUTC = appointmentDateTime.toISOString();
-      
-      const now = new Date();
-      const timezoneOffset = -now.getTimezoneOffset();
-      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-      const offsetMinutes = Math.abs(timezoneOffset) % 60;
-      const offsetSign = timezoneOffset >= 0 ? '+' : '-';
-      const offsetString = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-      
-      const registeredAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}${offsetString}`;
-
-      await createMutation.mutateAsync({
-        clinicSlug: slug!,
-        doctorId: doctorId!,
-        patient: {
-          name: formData.patientName,
-          phone: formData.patientPhone,
-          email: formData.patientEmail || undefined,
-        },
-        appointmentDate: appointmentDateTimeUTC,
-        reason: formData.reason || undefined,
-        registeredAt: registeredAt,
+      await updateUserMutation.mutateAsync({
+        id: doctor.id,
+        data: { avatar },
       });
-
-      setSuccessMessage('✅ Ваша заявка принята! Клиника свяжется с вами в ближайшее время.');
-      setFormData({
-        patientName: '',
-        patientPhone: '',
-        patientEmail: '',
-        appointmentDate: '',
-        appointmentTime: '',
-        reason: '',
-      });
-    } catch (err: any) {
-      alert(err.message || 'Ошибка создания заявки');
+      toast.success('Фото врача успешно обновлено');
+      refetch();
+      setIsAvatarModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Ошибка при обновлении фото');
+      throw error;
     }
   };
 
@@ -144,8 +113,16 @@ export const DoctorPage: React.FC = () => {
           <div className="flex flex-col md:flex-row gap-8">
             {/* Doctor Photo/Icon */}
             <div className="flex-shrink-0">
-              <div className="bg-main-10 w-32 h-32 rounded-lg flex items-center justify-center">
-                <img src={doctorIcon} alt="Doctor" className="w-16 h-16" />
+              <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-stroke bg-main-10 flex items-center justify-center">
+                {doctor.avatar ? (
+                  <img 
+                    src={doctor.avatar} 
+                    alt={doctor.name} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <img src={doctorIcon} alt="Doctor" className="w-16 h-16" />
+                )}
               </div>
             </div>
 
@@ -199,133 +176,58 @@ export const DoctorPage: React.FC = () => {
                 </Link>
               </div>
 
-              {/* CTA Button */}
-              <div className="mt-8">
-                <Button
-                  size="lg"
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-main-10 text-main-100 hover:bg-main-100 hover:text-white text-sm font-normal px-8 py-3"
-                >
-                  📅 Записаться на приём
-                </Button>
-              </div>
+              {/* Edit Button for Clinic Owner */}
+              {isClinicOwner && (
+                <div className="mt-8 flex gap-3">
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    onClick={() => setIsAvatarModalOpen(true)}
+                    className="bg-main-10 text-main-100 hover:bg-main-100 hover:text-white text-sm font-normal px-8 py-3"
+                  >
+                    📷 Изменить фото
+                  </Button>
+                  <Link to="/dashboard/doctors">
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      className="text-sm font-normal px-8 py-3"
+                    >
+                      ← Назад к списку врачей
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </Card>
       </main>
 
-      {/* Appointment Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSuccessMessage('');
-        }}
-        title="Онлайн-запись на приём"
-        size="lg"
-      >
-        {successMessage ? (
-          <div className="text-center py-8">
-            <div className="bg-secondary-10 w-20 h-20 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-secondary-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-medium text-text-100 mb-2">Заявка отправлена!</h3>
-            <p className="text-sm text-text-50 mb-6">{successMessage}</p>
-            <Button 
-              onClick={() => setIsModalOpen(false)}
-              className="text-sm font-normal bg-main-10 text-main-100 hover:bg-main-100 hover:text-white"
-            >
-              Закрыть
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-main-10 border border-stroke px-4 py-3 rounded-sm">
-              <p className="text-sm text-text-50">
-                Врач: <strong className="text-text-100">{doctor.name}</strong>
-              </p>
-              <p className="text-xs text-text-10 mt-1">{doctor.specialization}</p>
-            </div>
-
-            <Input
-              label="Ваше ФИО"
-              placeholder="Иван Иванов"
-              value={formData.patientName}
-              onChange={e => setFormData({ ...formData, patientName: e.target.value })}
-              required
+      {/* Avatar Upload Modal for Clinic Owner */}
+      {isClinicOwner && (
+        <Modal
+          isOpen={isAvatarModalOpen}
+          onClose={() => setIsAvatarModalOpen(false)}
+          title="Изменить фото врача"
+          size="md"
+        >
+          <div className="space-y-4">
+            <AvatarUpload
+              currentAvatar={doctor?.avatar}
+              onUpload={handleAvatarUpload}
+              isLoading={updateUserMutation.isPending}
             />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Телефон"
-                type="tel"
-                placeholder="+374 98 123456"
-                value={formData.patientPhone}
-                onChange={e => setFormData({ ...formData, patientPhone: e.target.value })}
-                required
-              />
-              <Input
-                label="Email"
-                type="email"
-                placeholder="example@mail.com"
-                value={formData.patientEmail}
-                onChange={e => setFormData({ ...formData, patientEmail: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Дата"
-                type="date"
-                value={formData.appointmentDate}
-                onChange={e => setFormData({ ...formData, appointmentDate: e.target.value })}
-                required
-                min={new Date().toISOString().split('T')[0]}
-              />
-              <Input
-                label="Время"
-                type="time"
-                value={formData.appointmentTime}
-                onChange={e => setFormData({ ...formData, appointmentTime: e.target.value })}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-normal text-text-10 mb-2">
-                Причина визита
-              </label>
-              <textarea
-                value={formData.reason}
-                onChange={e => setFormData({ ...formData, reason: e.target.value })}
-                rows={3}
-                className="block w-full px-4 py-2.5 border border-stroke rounded-sm bg-bg-white text-sm text-text-100 placeholder-text-10 focus:outline-none focus:border-main-100 transition-smooth resize-none"
-                placeholder="Опишите вашу проблему..."
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={() => setIsModalOpen(false)}
-                className="text-sm font-normal"
+            <div className="flex justify-end pt-4 border-t border-stroke">
+              <Button
+                variant="secondary"
+                onClick={() => setIsAvatarModalOpen(false)}
               >
-                Отмена
-              </Button>
-              <Button 
-                type="submit" 
-                isLoading={createMutation.isPending}
-                className="text-sm font-normal bg-main-10 text-main-100 hover:bg-main-100 hover:text-white"
-              >
-                Отправить заявку
+                Закрыть
               </Button>
             </div>
-          </form>
-        )}
-      </Modal>
+          </div>
+        </Modal>
+      )}
 
       {/* Footer */}
       <footer className="bg-bg-white border-t border-stroke py-8 mt-20">

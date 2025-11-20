@@ -67,6 +67,11 @@ export const LogoUpload: React.FC<LogoUploadProps> = ({ currentLogo, onUpload, i
     }
   };
 
+  const handleSelectFileClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-6">
@@ -107,14 +112,14 @@ export const LogoUpload: React.FC<LogoUploadProps> = ({ currentLogo, onUpload, i
               className="hidden"
               id="logo-upload"
             />
-            <label
-              htmlFor="logo-upload"
-              className="inline-block cursor-pointer"
+            <Button 
+              variant="secondary" 
+              size="md" 
+              onClick={handleSelectFileClick}
+              type="button"
             >
-              <Button variant="secondary" size="md" as="span">
-                Выбрать файл
-              </Button>
-            </label>
+              Выбрать файл
+            </Button>
             <p className="text-xs text-text-10 mt-2">
               Форматы: JPG, PNG, GIF. Максимальный размер: 5MB
             </p>

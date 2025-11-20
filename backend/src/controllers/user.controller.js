@@ -46,11 +46,25 @@ export async function getDoctors(req, res, next) {
 /**
  * GET /api/v1/users/:id
  * Получить пользователя по ID
+ * Доступ: ADMIN (может получить любого), CLINIC (может получить своих врачей)
  */
 export async function getById(req, res, next) {
   try {
     const { id } = req.params;
-    const clinicId = req.user.clinicId;
+    const clinicId = req.user.clinicId; // Может быть null для ADMIN
+    const userRole = req.user.role;
+
+    // Для ADMIN clinicId может быть null
+    // Для CLINIC clinicId обязателен
+    if (userRole !== 'ADMIN' && !clinicId) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Clinic ID is required',
+        },
+      });
+    }
 
     const user = await userService.findById(clinicId, id);
 
@@ -79,11 +93,25 @@ export async function create(req, res, next) {
 /**
  * PUT /api/v1/users/:id
  * Обновить пользователя
+ * Доступ: ADMIN (может обновлять любого), CLINIC (может обновлять своих врачей)
  */
 export async function update(req, res, next) {
   try {
     const { id } = req.params;
-    const clinicId = req.user.clinicId;
+    const clinicId = req.user.clinicId; // Может быть null для ADMIN
+    const userRole = req.user.role;
+
+    // Для ADMIN clinicId может быть null
+    // Для CLINIC clinicId обязателен
+    if (userRole !== 'ADMIN' && !clinicId) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Clinic ID is required',
+        },
+      });
+    }
 
     const user = await userService.update(clinicId, id, req.body);
 
