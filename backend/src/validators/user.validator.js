@@ -144,3 +144,56 @@ export const updateDoctorProfileSchema = Joi.object({
   avatar: Joi.string().allow('').optional(), // Base64 строка для изображения
 }).min(1); // Хотя бы одно поле обязательно
 
+/**
+ * Обновление профиля текущего пользователя (для всех ролей)
+ * Позволяет обновить свои личные данные
+ */
+export const updateMyProfileSchema = Joi.object({
+  name: Joi.string().min(2).max(100).optional(),
+  email: Joi.string().email().optional(),
+  phone: Joi.string()
+    .pattern(/^\+?[\d\s\-\(\)]+$/)
+    .allow('')
+    .optional()
+    .messages({
+      'string.pattern.base': 'Phone number format is invalid',
+    }),
+  avatar: Joi.string().allow('').optional(), // Base64 строка для изображения
+  dateOfBirth: Joi.date().max('now').optional().messages({
+    'date.max': 'Date of birth cannot be in the future',
+  }),
+  gender: Joi.string().valid('male', 'female', 'other').optional(),
+  // Doctor-specific fields (только для врачей)
+  specialization: Joi.string().min(2).max(100).optional(),
+  licenseNumber: Joi.string().min(2).max(50).optional(),
+  experience: Joi.number().integer().min(0).max(70).optional().messages({
+    'number.base': 'Experience must be a number',
+    'number.min': 'Experience cannot be negative',
+    'number.max': 'Experience cannot exceed 70 years',
+  }),
+  // Partner-specific fields (только для партнеров)
+  organizationName: Joi.string().min(2).max(200).optional(),
+  organizationType: Joi.string().valid('pharmacy', 'laboratory', 'insurance').optional(),
+  inn: Joi.string().min(10).max(12).optional(),
+  address: Joi.string().max(500).optional(),
+}).min(1); // Хотя бы одно поле обязательно
+
+/**
+ * Изменение пароля текущего пользователя
+ */
+export const updateMyPasswordSchema = Joi.object({
+  currentPassword: Joi.string().required().messages({
+    'any.required': 'Current password is required',
+  }),
+  newPassword: Joi.string()
+    .min(8)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters',
+      'string.pattern.base':
+        'Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number',
+      'any.required': 'New password is required',
+    }),
+});
+

@@ -112,6 +112,22 @@ body {
     }
   }
   
+  /* Bounce animation for typing indicator */
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+      opacity: 0.7;
+    }
+    50% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+  
+  .animate-bounce {
+    animation: bounce 1.4s ease-in-out infinite;
+  }
+  
   /* Плавные переходы для интерактивных элементов (не для всех, чтобы не замедлить рендеринг) */
   button, a, input, select, textarea, [role="button"] {
     transition-property: opacity, transform, background-color, border-color, color;

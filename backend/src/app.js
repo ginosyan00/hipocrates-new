@@ -1,17 +1,27 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from './config/app.js';
 import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Express Application Setup
  */
 const app = express();
 
-// Security headers
-app.use(helmet());
+// Security headers - настройка для статических файлов
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // CORS - Smart origin handling for development and production
 app.use(
@@ -48,6 +58,35 @@ app.use(
 // Body parser - увеличен лимит для загрузки файлов (сертификаты в base64)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Static files - для загрузки изображений чата (с CORS headers)
+app.use('/uploads', (req, res, next) => {
+  // Добавляем CORS headers для статических файлов
+  const origin = req.headers.origin;
+  
+  // Development mode: allow all localhost origins
+  if (config.nodeEnv === 'development') {
+    if (origin) {
+      const localhostRegex = /^http:\/\/localhost:\d+$/;
+      if (localhostRegex.test(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
+    } else {
+      // Если нет origin (например, прямой запрос), разрешаем все
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+  } else if (origin && config.corsOrigin === origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  // Дополнительные headers для изображений
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // Request logging (development)
 if (config.nodeEnv === 'development') {

@@ -112,6 +112,38 @@ export const userService = {
     console.log('✅ [USER SERVICE] Врач успешно создан:', data.data.id);
     return data.data;
   },
+
+  /**
+   * Получить профиль текущего пользователя
+   */
+  async getMyProfile(): Promise<User> {
+    console.log('🔵 [USER SERVICE] Получение профиля текущего пользователя');
+    const { data } = await api.get<ApiResponse<User>>('/users/me');
+    console.log('✅ [USER SERVICE] Профиль получен:', data.data.id);
+    return data.data;
+  },
+
+  /**
+   * Обновить профиль текущего пользователя
+   */
+  async updateMyProfile(profile: Partial<User>): Promise<User> {
+    console.log('🔵 [USER SERVICE] Обновление профиля текущего пользователя');
+    const { data } = await api.put<ApiResponse<User>>('/users/me', profile);
+    console.log('✅ [USER SERVICE] Профиль обновлен:', data.data.id);
+    return data.data;
+  },
+
+  /**
+   * Изменить пароль текущего пользователя
+   */
+  async updateMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+    console.log('🔵 [USER SERVICE] Изменение пароля текущего пользователя');
+    await api.put<ApiResponse<{ message: string }>>('/users/me/password', {
+      currentPassword,
+      newPassword,
+    });
+    console.log('✅ [USER SERVICE] Пароль изменен');
+  },
 };
 
 

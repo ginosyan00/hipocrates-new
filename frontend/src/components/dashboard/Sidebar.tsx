@@ -72,6 +72,11 @@ export const Sidebar: React.FC = () => {
                 <img src={calendarIcon} alt="History" className="w-6 h-6" />
                 <span className="text-sm">History</span>
               </NavLink>
+
+              <NavLink to="/dashboard/patient/settings" className={navLinkClass}>
+                <img src={settingsIcon} alt="Settings" className="w-6 h-6" />
+                <span className="text-sm">Settings</span>
+              </NavLink>
             </>
           )}
 

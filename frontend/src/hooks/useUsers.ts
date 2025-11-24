@@ -84,4 +84,46 @@ export function useDeleteUser() {
   });
 }
 
+/**
+ * Получить профиль текущего пользователя
+ */
+export function useMyProfile() {
+  return useQuery({
+    queryKey: ['users', 'me'],
+    queryFn: () => userService.getMyProfile(),
+    staleTime: 30000, // 30 секунд
+  });
+}
+
+/**
+ * Обновить профиль текущего пользователя
+ */
+export function useUpdateMyProfile() {
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore(state => state.user);
+
+  return useMutation({
+    mutationFn: (data: Partial<User>) => userService.updateMyProfile(data),
+    onSuccess: (updatedUser) => {
+      // Инвалидируем кэш профиля
+      queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
+      
+      // Обновляем store с новыми данными пользователя
+      if (currentUser) {
+        useAuthStore.setState({ user: updatedUser });
+      }
+    },
+  });
+}
+
+/**
+ * Изменить пароль текущего пользователя
+ */
+export function useUpdateMyPassword() {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      userService.updateMyPassword(currentPassword, newPassword),
+  });
+}
+
 

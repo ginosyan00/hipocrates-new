@@ -535,3 +535,182 @@ export async function updateDoctorProfile(userId, data) {
   return updatedDoctor;
 }
 
+/**
+ * Получить профиль текущего пользователя
+ * @param {string} userId - ID пользователя (из токена)
+ * @returns {Promise<object>} Профиль пользователя
+ */
+export async function getMyProfile(userId) {
+  console.log('🔵 [USER SERVICE] Получение профиля пользователя:', userId);
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      phone: true,
+      avatar: true,
+      dateOfBirth: true,
+      gender: true,
+      // Doctor-specific fields
+      specialization: true,
+      licenseNumber: true,
+      experience: true,
+      // Partner-specific fields
+      organizationName: true,
+      organizationType: true,
+      inn: true,
+      address: true,
+      createdAt: true,
+      updatedAt: true,
+      // НЕ возвращаем passwordHash!
+    },
+  });
+
+  if (!user) {
+    console.log('🔴 [USER SERVICE] Пользователь не найден');
+    throw new Error('User not found');
+  }
+
+  console.log('✅ [USER SERVICE] Профиль получен:', user.id);
+  return user;
+}
+
+/**
+ * Обновить профиль текущего пользователя
+ * @param {string} userId - ID пользователя (из токена)
+ * @param {object} data - Данные для обновления
+ * @returns {Promise<object>} Обновленный профиль
+ */
+export async function updateMyProfile(userId, data) {
+  console.log('🔵 [USER SERVICE] Обновление профиля пользователя:', userId);
+
+  // Проверяем что пользователь существует
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    console.log('🔴 [USER SERVICE] Пользователь не найден');
+    throw new Error('User not found');
+  }
+
+  // Если обновляется email, проверяем уникальность
+  if (data.email) {
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existing && existing.id !== userId) {
+      console.log('🔴 [USER SERVICE] Email уже используется:', data.email);
+      throw new Error('User with this email already exists');
+    }
+  }
+
+  // Подготавливаем данные для обновления
+  const updateData = {};
+
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.phone !== undefined) updateData.phone = data.phone || null;
+  if (data.avatar !== undefined) updateData.avatar = data.avatar || null;
+  if (data.dateOfBirth !== undefined) {
+    updateData.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+  }
+  if (data.gender !== undefined) updateData.gender = data.gender || null;
+
+  // Doctor-specific fields (только для врачей)
+  if (user.role === 'DOCTOR') {
+    if (data.specialization !== undefined) updateData.specialization = data.specialization || null;
+    if (data.licenseNumber !== undefined) updateData.licenseNumber = data.licenseNumber || null;
+    if (data.experience !== undefined) updateData.experience = data.experience || null;
+  }
+
+  // Partner-specific fields (только для партнеров)
+  if (user.role === 'PARTNER') {
+    if (data.organizationName !== undefined) updateData.organizationName = data.organizationName || null;
+    if (data.organizationType !== undefined) updateData.organizationType = data.organizationType || null;
+    if (data.inn !== undefined) updateData.inn = data.inn || null;
+    if (data.address !== undefined) updateData.address = data.address || null;
+  }
+
+  // Обновляем профиль
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+    select: {
+      id: true,
+      clinicId: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      phone: true,
+      avatar: true,
+      dateOfBirth: true,
+      gender: true,
+      specialization: true,
+      licenseNumber: true,
+      experience: true,
+      organizationName: true,
+      organizationType: true,
+      inn: true,
+      address: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  console.log('✅ [USER SERVICE] Профиль успешно обновлен:', updatedUser.id);
+  return updatedUser;
+}
+
+/**
+ * Изменить пароль текущего пользователя
+ * @param {string} userId - ID пользователя (из токена)
+ * @param {string} currentPassword - Текущий пароль
+ * @param {string} newPassword - Новый пароль
+ * @returns {Promise<void>}
+ */
+export async function updateMyPassword(userId, currentPassword, newPassword) {
+  console.log('🔵 [USER SERVICE] Изменение пароля пользователя:', userId);
+
+  // Получаем пользователя с passwordHash
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      passwordHash: true,
+    },
+  });
+
+  if (!user) {
+    console.log('🔴 [USER SERVICE] Пользователь не найден');
+    throw new Error('User not found');
+  }
+
+  // Проверяем текущий пароль
+  const { verifyPassword } = await import('../utils/hash.util.js');
+  const isPasswordValid = await verifyPassword(currentPassword, user.passwordHash);
+
+  if (!isPasswordValid) {
+    console.log('🔴 [USER SERVICE] Неверный текущий пароль');
+    throw new Error('Current password is incorrect');
+  }
+
+  // Хешируем новый пароль
+  const newPasswordHash = await hashPassword(newPassword);
+
+  // Обновляем пароль
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newPasswordHash },
+  });
+
+  console.log('✅ [USER SERVICE] Пароль успешно изменен:', userId);
+}
+

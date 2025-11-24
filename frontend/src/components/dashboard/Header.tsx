@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUIStore } from '../../store/useUIStore';
 import { NotificationDropdown } from './NotificationDropdown';
+import { PatientChat } from '../chat/PatientChat';
+import { ClinicChat } from '../chat/ClinicChat';
+import { useUnreadCount } from '../../hooks/useChat';
 
 // Import icons
 import searchIcon from '../../assets/icons/search.svg';
@@ -18,6 +21,8 @@ export const Header: React.FC = () => {
   const logout = useAuthStore(state => state.logout);
   const toggleSidebar = useUIStore(state => state.toggleSidebar);
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
+  const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const { unreadCount } = useUnreadCount();
 
   return (
     <header className="bg-bg-white border-b border-stroke px-8 py-6 sticky top-0 z-40">
@@ -51,6 +56,62 @@ export const Header: React.FC = () => {
 
         {/* Right: Icons & Profile */}
         <div className="flex items-center gap-4">
+          {/* Chat Button - только для CLINIC */}
+          {user?.role === 'CLINIC' && (
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="relative p-2 rounded-sm hover:bg-bg-primary transition-smooth"
+              title="Чат врачей"
+            >
+              <svg
+                className="w-6 h-6 text-text-50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-main-100 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Chat Button - для пациентов */}
+          {user?.role === 'PATIENT' && (
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="relative p-2 rounded-sm hover:bg-bg-primary transition-smooth"
+              title="Чат"
+            >
+              <svg
+                className="w-6 h-6 text-text-50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-main-100 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Notifications */}
           <NotificationDropdown />
 
@@ -89,6 +150,23 @@ export const Header: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Chat Component - разный для разных ролей */}
+      {user?.role === 'CLINIC' ? (
+        <ClinicChat
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          mode="sidebar"
+          width="800px"
+        />
+      ) : (
+        <PatientChat
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          mode="sidebar"
+          width="450px"
+        />
+      )}
     </header>
   );
 };

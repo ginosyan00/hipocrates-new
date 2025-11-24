@@ -12,11 +12,13 @@ import { AddDoctorPage } from './pages/dashboard/AddDoctorPage';
 import { AnalyticsPage } from './pages/dashboard/Analytics';
 import { WebPage } from './pages/dashboard/WebPage';
 import { SettingsPage } from './pages/dashboard/Settings';
+import { ClinicChatPage } from './pages/dashboard/ClinicChatPage';
 import { PatientDashboard } from './pages/dashboard/PatientDashboard';
 import { PatientAppointmentsPage } from './pages/dashboard/PatientAppointmentsPage';
 import { PatientAnalyticsPage } from './pages/dashboard/PatientAnalyticsPage';
 import { PatientClinicsPage } from './pages/dashboard/PatientClinicsPage';
 import { PatientHistoryPage } from './pages/dashboard/PatientHistoryPage';
+import { PatientSettingsPage } from './pages/dashboard/PatientSettings';
 import { DoctorDashboard } from './pages/dashboard/DoctorDashboard';
 import { PartnerDashboard } from './pages/dashboard/PartnerDashboard';
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
@@ -94,6 +96,14 @@ function App() {
           element={
             <RoleProtectedRoute allowedRoles={[UserRole.PATIENT]}>
               <PatientHistoryPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/patient/settings"
+          element={
+            <RoleProtectedRoute allowedRoles={[UserRole.PATIENT]}>
+              <PatientSettingsPage />
             </RoleProtectedRoute>
           }
         />
@@ -210,6 +220,14 @@ function App() {
           element={
             <RoleProtectedRoute allowedRoles={[UserRole.ADMIN, 'CLINIC']}>
               <SettingsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/chat"
+          element={
+            <RoleProtectedRoute allowedRoles={['CLINIC']}>
+              <ClinicChatPage />
             </RoleProtectedRoute>
           }
         />

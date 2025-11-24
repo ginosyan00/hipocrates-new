@@ -218,3 +218,67 @@ export async function createDoctor(req, res, next) {
   }
 }
 
+/**
+ * GET /api/v1/users/me
+ * Получить профиль текущего пользователя
+ * Доступ: любой авторизованный пользователь
+ */
+export async function getMyProfile(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    console.log('🔵 [USER CONTROLLER] Получение профиля пользователя:', userId);
+
+    const user = await userService.getMyProfile(userId);
+
+    console.log('✅ [USER CONTROLLER] Профиль получен:', user.id);
+    successResponse(res, user, 200);
+  } catch (error) {
+    console.log('🔴 [USER CONTROLLER] Ошибка:', error.message);
+    next(error);
+  }
+}
+
+/**
+ * PUT /api/v1/users/me
+ * Обновить профиль текущего пользователя
+ * Доступ: любой авторизованный пользователь
+ */
+export async function updateMyProfile(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    console.log('🔵 [USER CONTROLLER] Обновление профиля пользователя:', userId);
+
+    const user = await userService.updateMyProfile(userId, req.body);
+
+    console.log('✅ [USER CONTROLLER] Профиль обновлен:', user.id);
+    successResponse(res, user, 200);
+  } catch (error) {
+    console.log('🔴 [USER CONTROLLER] Ошибка:', error.message);
+    next(error);
+  }
+}
+
+/**
+ * PUT /api/v1/users/me/password
+ * Изменить пароль текущего пользователя
+ * Доступ: любой авторизованный пользователь
+ */
+export async function updateMyPassword(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    console.log('🔵 [USER CONTROLLER] Изменение пароля пользователя:', userId);
+
+    await userService.updateMyPassword(userId, currentPassword, newPassword);
+
+    console.log('✅ [USER CONTROLLER] Пароль изменен:', userId);
+    successResponse(res, { message: 'Password updated successfully' }, 200);
+  } catch (error) {
+    console.log('🔴 [USER CONTROLLER] Ошибка:', error.message);
+    next(error);
+  }
+}
+

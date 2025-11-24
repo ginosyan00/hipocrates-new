@@ -6,7 +6,9 @@ import { validate } from '../middlewares/validation.middleware.js';
 import { 
   createUserSchema, 
   updateUserSchema, 
-  createDoctorByClinicSchema 
+  createDoctorByClinicSchema,
+  updateMyProfileSchema,
+  updateMyPasswordSchema
 } from '../validators/user.validator.js';
 
 const router = express.Router();
@@ -14,6 +16,27 @@ const router = express.Router();
 // Применяем auth и tenant middleware ко всем routes
 router.use(authenticate);
 router.use(tenantMiddleware);
+
+/**
+ * GET /api/v1/users/me
+ * Получить профиль текущего пользователя
+ * Доступ: любой авторизованный пользователь
+ */
+router.get('/me', userController.getMyProfile);
+
+/**
+ * PUT /api/v1/users/me
+ * Обновить профиль текущего пользователя
+ * Доступ: любой авторизованный пользователь
+ */
+router.put('/me', validate(updateMyProfileSchema), userController.updateMyProfile);
+
+/**
+ * PUT /api/v1/users/me/password
+ * Изменить пароль текущего пользователя
+ * Доступ: любой авторизованный пользователь
+ */
+router.put('/me/password', validate(updateMyPasswordSchema), userController.updateMyPassword);
 
 /**
  * GET /api/v1/users/doctors

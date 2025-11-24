@@ -5,7 +5,8 @@ import { PatientProfileModal } from '../../components/dashboard/PatientProfileMo
 import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '../../hooks/usePatients';
 import { usePatientVisits } from '../../hooks/usePatientVisits';
 import { useDoctors } from '../../hooks/useUsers';
-import { Patient, PatientVisit, AppointmentStatus } from '../../types/api.types';
+import { Patient, AppointmentStatus, Gender } from '../../types/api.types';
+import type { PatientVisit } from '../../types/api.types';
 import { formatAppointmentDateTime } from '../../utils/dateFormat';
 
 // Import search icon
@@ -83,13 +84,22 @@ export const PatientsPage: React.FC = () => {
     e.preventDefault();
 
     try {
+      const patientData: Partial<Patient> = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || undefined,
+        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth) : undefined,
+        gender: formData.gender ? (formData.gender as Gender) : undefined,
+        notes: formData.notes || undefined,
+      };
+
       if (editingPatient) {
         await updateMutation.mutateAsync({
           id: editingPatient.id,
-          data: formData,
+          data: patientData,
         });
       } else {
-        await createMutation.mutateAsync(formData);
+        await createMutation.mutateAsync(patientData);
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -133,14 +143,14 @@ export const PatientsPage: React.FC = () => {
   };
 
   const isLoading = viewMode === 'table' ? isLoadingVisits : isLoadingPatients;
-  const visits = visitsData?.visits || [];
-  const patients = patientsData?.patients || [];
+  const visits: PatientVisit[] = visitsData?.data || [];
+  const patients: Patient[] = patientsData?.data || [];
   const doctors = doctorsData || [];
 
   // Уникальные визиты по appointmentId (защита от дубликатов)
   const uniqueVisits = Array.from(
-    new Map(visits.map(visit => [visit.appointmentId, visit])).values()
-  );
+    new Map(visits.map((visit: PatientVisit) => [visit.appointmentId, visit])).values()
+  ) as PatientVisit[];
 
   return (
     <NewDashboardLayout>
@@ -282,7 +292,7 @@ export const PatientsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-bg-white divide-y divide-stroke">
-                    {uniqueVisits.map(visit => (
+                    {uniqueVisits.map((visit: PatientVisit) => (
                       <tr 
                         key={visit.appointmentId} 
                         className="hover:bg-bg-primary transition-smooth cursor-pointer"
@@ -341,7 +351,7 @@ export const PatientsPage: React.FC = () => {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {patients.map(patient => (
+                {patients.map((patient: Patient) => (
                   <Card 
                     key={patient.id} 
                     padding="md"

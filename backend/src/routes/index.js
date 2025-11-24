@@ -9,6 +9,8 @@ import clinicRoutes from './clinic.routes.js';
 import publicRoutes from './public.routes.js';
 import analyticsRoutes from './analytics.routes.js';
 import certificateRoutes from './certificate.routes.js';
+import chatRoutes from './chat.routes.js';
+import uploadRoutes from './upload.routes.js';
 
 const router = express.Router();
 
@@ -46,6 +48,12 @@ router.use('/analytics', analyticsRoutes);
 
 // Certificate routes (требуют авторизацию)
 router.use('/certificates', certificateRoutes);
+
+// Chat routes (требуют авторизацию)
+router.use('/chat', chatRoutes);
+
+// Upload routes (требуют авторизацию)
+router.use('/upload', uploadRoutes);
 
 // Health check (для удобства, дублирует основной health endpoint)
 router.get('/health', (req, res) => {
