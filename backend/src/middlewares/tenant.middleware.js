@@ -4,21 +4,35 @@
  */
 export function tenantMiddleware(req, res, next) {
   // Проверяем что пользователь авторизован
-  if (!req.user || !req.user.clinicId) {
+  if (!req.user) {
     return res.status(401).json({
       success: false,
       error: {
         code: 'UNAUTHORIZED',
-        message: 'User not authenticated or clinicId missing',
+        message: 'User not authenticated',
       },
     });
   }
 
-  // Добавляем tenant фильтр в request
+  // Для PATIENT clinicId может быть null (новый пользователь еще не связан с клиникой)
+  // Для других ролей (DOCTOR, ADMIN, CLINIC) clinicId обязателен
+  if (req.user.role !== 'PATIENT' && !req.user.clinicId) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Clinic ID is required for this role',
+      },
+    });
+  }
+
+  // Добавляем tenant фильтр в request (если clinicId есть)
   // Этот фильтр будет использоваться в services для автоматической фильтрации
-  req.tenantFilter = {
-    clinicId: req.user.clinicId,
-  };
+  if (req.user.clinicId) {
+    req.tenantFilter = {
+      clinicId: req.user.clinicId,
+    };
+  }
 
   // Логирование для отладки (в development)
   if (process.env.NODE_ENV === 'development') {

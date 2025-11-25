@@ -317,4 +317,29 @@ export async function getUniqueCities() {
   return clinics.map(c => c.city);
 }
 
+/**
+ * Получить список пациентов для отзывов (публичный endpoint)
+ * Возвращает только активных пациентов с их именами
+ * @param {number} limit - Количество пациентов (по умолчанию 3)
+ * @returns {Promise<array>} Список пациентов с именами
+ */
+export async function getPatientsForTestimonials(limit = 3) {
+  const patients = await prisma.user.findMany({
+    where: {
+      role: 'PATIENT',
+      status: 'ACTIVE',
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+    take: limit,
+    orderBy: {
+      createdAt: 'desc', // Последние зарегистрированные
+    },
+  });
+
+  return patients;
+}
+
 

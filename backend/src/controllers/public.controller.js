@@ -141,4 +141,21 @@ export async function getCities(req, res, next) {
   }
 }
 
+/**
+ * GET /api/v1/public/testimonials/patients
+ * Получить список пациентов для отзывов
+ * Query params: ?limit=3
+ */
+export async function getPatientsForTestimonials(req, res, next) {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit) : 3;
+    
+    const patients = await publicService.getPatientsForTestimonials(limit);
+
+    successResponse(res, patients, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
 

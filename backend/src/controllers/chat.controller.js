@@ -28,16 +28,29 @@ export async function getConversations(req, res, next) {
       });
 
       if (currentUser) {
+        // Для PATIENT ищем пациента по email/phone без фильтра по clinicId
+        // так как clinicId может быть null при регистрации
+        const where = {
+          OR: [
+            { email: currentUser.email },
+            { phone: currentUser.phone || '' },
+          ],
+        };
+        
+        // Если clinicId есть, добавляем его для более точного поиска
+        if (clinicId) {
+          where.clinicId = clinicId;
+        }
+        
         const patient = await prisma.patient.findFirst({
-          where: {
-            clinicId: clinicId || undefined,
-            OR: [
-              { email: currentUser.email },
-              { phone: currentUser.phone || '' },
-            ],
-          },
+          where,
+          orderBy: { createdAt: 'desc' }, // Берем самую новую запись
         });
+        
         patientId = patient?.id;
+        
+        // Если пациент не найден, это нормально для нового пользователя
+        // Вернем пустой список бесед
       }
     }
 
@@ -78,14 +91,22 @@ export async function getConversation(req, res, next) {
       });
 
       if (currentUser) {
+        // Для PATIENT ищем пациента по email/phone без обязательного фильтра по clinicId
+        const where = {
+          OR: [
+            { email: currentUser.email },
+            { phone: currentUser.phone || '' },
+          ],
+        };
+        
+        // Если clinicId есть, добавляем его для более точного поиска
+        if (clinicId) {
+          where.clinicId = clinicId;
+        }
+        
         const patient = await prisma.patient.findFirst({
-          where: {
-            clinicId: clinicId || undefined,
-            OR: [
-              { email: currentUser.email },
-              { phone: currentUser.phone || '' },
-            ],
-          },
+          where,
+          orderBy: { createdAt: 'desc' },
         });
         patientId = patient?.id;
       }
@@ -317,14 +338,22 @@ export async function getUnreadCount(req, res, next) {
       });
 
       if (currentUser) {
+        // Для PATIENT ищем пациента по email/phone без обязательного фильтра по clinicId
+        const where = {
+          OR: [
+            { email: currentUser.email },
+            { phone: currentUser.phone || '' },
+          ],
+        };
+        
+        // Если clinicId есть, добавляем его для более точного поиска
+        if (clinicId) {
+          where.clinicId = clinicId;
+        }
+        
         const patient = await prisma.patient.findFirst({
-          where: {
-            clinicId: clinicId || undefined,
-            OR: [
-              { email: currentUser.email },
-              { phone: currentUser.phone || '' },
-            ],
-          },
+          where,
+          orderBy: { createdAt: 'desc' },
         });
         patientId = patient?.id;
       }

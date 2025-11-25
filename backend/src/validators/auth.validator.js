@@ -109,14 +109,31 @@ export const registerUserSchema = Joi.object({
       'any.required': 'Password is required',
     }),
   phone: Joi.string()
-    .pattern(/^\+?[\d\s\-\(\)]+$/)
+    .custom((value, helpers) => {
+      // If no value or empty string, convert to null (optional field)
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        return null;
+      }
+      // Validate pattern only if value exists
+      if (!/^\+?[\d\s\-\(\)]+$/.test(value)) {
+        return helpers.error('string.pattern.base');
+      }
+      return value;
+    })
     .optional()
+    .allow(null)
     .messages({
       'string.pattern.base': 'Must be a valid phone number',
     }),
-  dateOfBirth: Joi.date().optional().messages({
-    'date.base': 'Must be a valid date',
-  }),
+  dateOfBirth: Joi.date()
+    .iso()
+    .allow(null, '')
+    .empty(['', null])
+    .optional()
+    .messages({
+      'date.base': 'Must be a valid date',
+      'date.format': 'Must be a valid ISO date',
+    }),
   gender: Joi.string().valid('male', 'female', 'other').optional().messages({
     'any.only': 'Gender must be one of: male, female, other',
   }),

@@ -51,14 +51,39 @@ export async function getConversations(clinicId, userRole, userId, patientId = n
   const { page = 1, limit = 50 } = options;
   const skip = (page - 1) * limit;
 
-  let where = { clinicId };
+  let where = {};
 
   // Для пациентов показываем только их беседы
-  if (userRole === 'PATIENT' && patientId) {
+  if (userRole === 'PATIENT') {
+    // Если patientId не найден, возвращаем пустой список
+    if (!patientId) {
+      return {
+        conversations: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+    
+    // Для PATIENT фильтруем только по patientId
+    // clinicId может быть null, поэтому не добавляем его в where
     where.patientId = patientId;
+    
+    // Если clinicId есть, добавляем его для дополнительной фильтрации
+    if (clinicId) {
+      where.clinicId = clinicId;
+    }
   }
   // Для врачей и админов показываем беседы их клиники
   else if (userRole === 'DOCTOR' || userRole === 'ADMIN' || userRole === 'CLINIC') {
+    // Для этих ролей clinicId обязателен
+    if (!clinicId) {
+      throw new Error('CLINIC_ID_REQUIRED');
+    }
+    
     // Врачи видят беседы, где они участники, или все беседы клиники
     if (userRole === 'DOCTOR') {
       where = {
@@ -180,12 +205,16 @@ export async function getConversationById(conversationId, clinicId, userRole, us
   }
 
   // Проверка доступа
-  if (conversation.clinicId !== clinicId) {
+  // Для PATIENT clinicId может быть null, поэтому проверяем только если он указан
+  if (clinicId && conversation.clinicId !== clinicId) {
     throw new Error('ACCESS_DENIED');
   }
 
-  if (userRole === 'PATIENT' && conversation.patientId !== patientId) {
-    throw new Error('ACCESS_DENIED');
+  // Для PATIENT проверяем, что беседа принадлежит этому пациенту
+  if (userRole === 'PATIENT') {
+    if (!patientId || conversation.patientId !== patientId) {
+      throw new Error('ACCESS_DENIED');
+    }
   }
 
   // Врачи имеют доступ к беседам, где они участники, или к беседам с клиникой (userId = null)
@@ -217,8 +246,14 @@ export async function getMessages(conversationId, clinicId, options = {}) {
     where: { id: conversationId },
   });
 
-  if (!conversation || conversation.clinicId !== clinicId) {
+  if (!conversation) {
     throw new Error('CONVERSATION_NOT_FOUND');
+  }
+
+  // Если clinicId указан, проверяем соответствие
+  // Если clinicId null (для PATIENT), пропускаем проверку
+  if (clinicId && conversation.clinicId !== clinicId) {
+    throw new Error('ACCESS_DENIED');
   }
 
   const where = {
@@ -270,8 +305,18 @@ export async function sendMessage(conversationId, senderId, senderType, content,
     where: { id: conversationId },
   });
 
-  if (!conversation || conversation.clinicId !== clinicId) {
+  if (!conversation) {
     throw new Error('CONVERSATION_NOT_FOUND');
+  }
+
+  // Для PATIENT clinicId может быть null, поэтому проверяем только если он указан
+  // Для других ролей clinicId обязателен
+  if (senderType !== 'patient' && !clinicId) {
+    throw new Error('CLINIC_ID_REQUIRED');
+  }
+
+  if (clinicId && conversation.clinicId !== clinicId) {
+    throw new Error('ACCESS_DENIED');
   }
 
   // Создаем сообщение
@@ -322,7 +367,9 @@ export async function deleteMessage(messageId, senderId, clinicId) {
   }
 
   // Проверяем доступ к беседе
-  if (message.conversation.clinicId !== clinicId) {
+  // Если clinicId указан, проверяем соответствие
+  // Если clinicId null (для PATIENT), пропускаем проверку clinicId
+  if (clinicId && message.conversation.clinicId !== clinicId) {
     throw new Error('ACCESS_DENIED');
   }
 
@@ -371,8 +418,18 @@ export async function markAsRead(conversationId, userId, userRole, clinicId) {
     where: { id: conversationId },
   });
 
-  if (!conversation || conversation.clinicId !== clinicId) {
+  if (!conversation) {
     throw new Error('CONVERSATION_NOT_FOUND');
+  }
+
+  // Для PATIENT clinicId может быть null, поэтому проверяем только если он указан
+  // Для других ролей clinicId обязателен
+  if (userRole !== 'PATIENT' && !clinicId) {
+    throw new Error('CLINIC_ID_REQUIRED');
+  }
+
+  if (clinicId && conversation.clinicId !== clinicId) {
+    throw new Error('ACCESS_DENIED');
   }
 
   // Определяем, какие сообщения нужно отметить как прочитанные
@@ -404,6 +461,11 @@ export async function markAsRead(conversationId, userId, userRole, clinicId) {
  * @returns {Promise<number>} Количество непрочитанных сообщений
  */
 export async function getUnreadCount(clinicId, userRole, userId, patientId = null) {
+  // Если PATIENT и patientId не найден, возвращаем 0
+  if (userRole === 'PATIENT' && !patientId) {
+    return 0;
+  }
+
   let where = {
     isRead: false,
   };
@@ -411,12 +473,22 @@ export async function getUnreadCount(clinicId, userRole, userId, patientId = nul
   if (userRole === 'PATIENT' && patientId) {
     // Пациенты видят непрочитанные сообщения от врачей/клиники
     where.senderType = { not: 'patient' };
-    where.conversation = {
+    const conversationWhere = {
       patientId,
-      clinicId,
     };
+    
+    // Если clinicId есть, добавляем его для фильтрации
+    if (clinicId) {
+      conversationWhere.clinicId = clinicId;
+    }
+    
+    where.conversation = conversationWhere;
   } else if (userRole === 'DOCTOR') {
     // Врачи видят непрочитанные сообщения от пациентов в своих беседах
+    if (!clinicId) {
+      throw new Error('CLINIC_ID_REQUIRED');
+    }
+    
     where.senderType = 'patient';
     where.conversation = {
       clinicId,
@@ -427,6 +499,10 @@ export async function getUnreadCount(clinicId, userRole, userId, patientId = nul
     };
   } else if (userRole === 'ADMIN' || userRole === 'CLINIC') {
     // Админы видят все непрочитанные сообщения от пациентов в клинике
+    if (!clinicId) {
+      throw new Error('CLINIC_ID_REQUIRED');
+    }
+    
     where.senderType = 'patient';
     where.conversation = {
       clinicId,

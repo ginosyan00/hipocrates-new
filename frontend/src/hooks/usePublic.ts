@@ -54,4 +54,12 @@ export function useCreatePublicAppointment() {
   });
 }
 
+export function usePatientsForTestimonials(limit: number = 3) {
+  return useQuery({
+    queryKey: ['public-testimonials-patients', limit],
+    queryFn: () => publicService.getPatientsForTestimonials(limit),
+    staleTime: 300000, // 5 минут
+  });
+}
+
 

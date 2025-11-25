@@ -11,6 +11,8 @@ import analyticsRoutes from './analytics.routes.js';
 import certificateRoutes from './certificate.routes.js';
 import chatRoutes from './chat.routes.js';
 import uploadRoutes from './upload.routes.js';
+import dailyAdviceRoutes from './dailyAdvice.routes.js';
+import dailyAdvicePublicRoutes from './dailyAdvice.public.routes.js';
 
 const router = express.Router();
 
@@ -21,6 +23,7 @@ const router = express.Router();
 
 // Public routes (БЕЗ авторизации!)
 router.use('/public', publicRoutes);
+router.use('/public/daily-advice', dailyAdvicePublicRoutes);
 
 // Auth routes
 router.use('/auth', authRoutes);
@@ -54,6 +57,9 @@ router.use('/chat', chatRoutes);
 
 // Upload routes (требуют авторизацию)
 router.use('/upload', uploadRoutes);
+
+// Daily Advice routes (публичные для чтения, защищенные для админа)
+router.use('/daily-advice', dailyAdviceRoutes);
 
 // Health check (для удобства, дублирует основной health endpoint)
 router.get('/health', (req, res) => {

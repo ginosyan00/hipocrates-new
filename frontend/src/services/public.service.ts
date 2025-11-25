@@ -78,6 +78,17 @@ export const publicService = {
     );
     return data.data;
   },
+
+  /**
+   * Получить список пациентов для отзывов
+   */
+  async getPatientsForTestimonials(limit: number = 3): Promise<Array<{ id: string; name: string }>> {
+    const { data } = await api.get<ApiResponse<Array<{ id: string; name: string }>>>(
+      '/public/testimonials/patients',
+      { params: { limit } }
+    );
+    return data.data;
+  },
 };
 
 

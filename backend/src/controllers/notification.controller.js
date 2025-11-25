@@ -64,12 +64,12 @@ async function getPatientIdUserIdAndClinicId(req) {
       // Это нормальная ситуация - пользователь может быть зарегистрирован как User,
       // но еще не создал запись в таблице Patient
       if (req.user.clinicId) {
-        console.log('⚠️ [NOTIFICATION] Пациент не найден в таблице Patient, используем clinicId из токена:', req.user.clinicId);
+        console.log('🔵 [NOTIFICATION] Пациент не найден в таблице Patient, используем clinicId из токена:', req.user.clinicId);
         return { patientId: null, userId: null, clinicId: req.user.clinicId };
       }
 
       // Если нет ни patientId, ни clinicId, возвращаем null
-      console.warn('⚠️ [NOTIFICATION] Не удалось найти patientId и clinicId для PATIENT');
+      // Это нормальная ситуация для нового PATIENT пользователя, который еще не записался к клинике
       return { patientId: null, userId: null, clinicId: null };
     }
 
@@ -139,8 +139,8 @@ export async function getAll(req, res, next) {
     const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
     // Если clinicId не найден, возвращаем пустой список
+    // Это нормальная ситуация для нового PATIENT пользователя
     if (!clinicId) {
-      console.warn('⚠️ [NOTIFICATION] ClinicId не найден, возвращаем пустой список');
       return successResponse(res, {
         notifications: [],
         meta: {
@@ -155,7 +155,6 @@ export async function getAll(req, res, next) {
     // Если patientId и userId не найдены, возвращаем пустой список
     // Это может произойти, если пользователь еще не создал запись в таблице Patient
     if (!patientId && !userId) {
-      console.warn('⚠️ [NOTIFICATION] PatientId и UserId не найдены, возвращаем пустой список');
       return successResponse(res, {
         notifications: [],
         meta: {
@@ -219,15 +218,14 @@ export async function getUnreadCount(req, res, next) {
     const { patientId, userId, clinicId } = await getPatientIdUserIdAndClinicId(req);
 
     // Если clinicId не найден, возвращаем 0 (нет уведомлений)
+    // Это нормальная ситуация для нового PATIENT пользователя
     if (!clinicId) {
-      console.warn('⚠️ [NOTIFICATION] ClinicId не найден, возвращаем 0');
       return successResponse(res, { count: 0 }, 200);
     }
 
     // Если patientId и userId не найдены, возвращаем 0 (нет уведомлений)
     // Это может произойти, если пользователь еще не создал запись в таблице Patient
     if (!patientId && !userId) {
-      console.warn('⚠️ [NOTIFICATION] PatientId и UserId не найдены, возвращаем 0');
       return successResponse(res, { count: 0 }, 200);
     }
 
